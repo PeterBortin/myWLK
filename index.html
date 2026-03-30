@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>TRACE_SYSTEM_v2.1</title>
+    
+    <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+    <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
+    <link href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet" />
+    <style>
+        :root {
+            --neon-green: #00ff00;
+            --neon-yellow: #ffff00;
+            --dos-bg: #000000;
+            --ui-text: #00ff00;
+        }
+
+        body, html {
+            margin: 0; padding: 0;
+            width: 100%; height: 100%;
+            overflow: hidden;
+            background: var(--dos-bg);
+            font-family: 'Courier New', Courier, monospace;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
+        }
+
+        #map { 
+            position: absolute; top: 0; bottom: 0; width: 100%; 
+            z-index: 1; background: #000;
+        }
+
+        /* DOS HUD */
+        #ui-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 10; pointer-events: none;
+            padding: 20px; box-sizing: border-box;
+            color: var(--ui-text);
+            text-shadow: 0 0 4px var(--ui-text);
+        }
+
+        .hud-top-left { position: absolute; top: 20px; left: 20px; }
+        .hud-top-right { position: absolute; top: 20px; right: 20px; text-align: right; }
+        .hud-bottom-left { position: absolute; bottom: 20px; left: 20px; font-size: 12px; }
+
+        .stat-block { margin-bottom: 10px; line-height: 1.2; }
+        .label { color: rgba(0, 255, 0, 0.6); text-transform: uppercase; margin-right: 5px;}
+        .value { color: #fff; font-weight: bold; }
+
+        /* Эффект свечения для текста */
+        .neon-text {
+            color: #fff;
+            text-shadow: 0 0 2px #fff, 0 0 4px var(--neon-green), 0 0 6px var(--neon-green);
+        }
+
+        #start-screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 100; background: var(--dos-bg); color: var(--ui-text);
+            display: flex; flex-direction: column; align-items: center;
+            justify-content: center; text-align: center;
+            padding: 20px;
+        }
+
+        button {
+            background: none; border: 1px solid var(--neon-green);
+            color: var(--neon-green); padding: 15px 30px;
+            font-family: 'Courier New', monospace; font-size: 18px;
+            cursor: pointer; margin-top: 30px; pointer-events: auto;
+            text-shadow: 0 0 5px var(--neon-green);
+            box-shadow: 0 0 5px rgba(0,255,0,0.3);
+        }
+
+        button:active { background: rgba(0,255,0,0.2); }
+
+        .blink { animation: blinker 1s linear infinite; }
+        @keyframes blinker { 50% { opacity: 0; } }
+    </style>
+</head>
+<body>
+
+<div id="start-screen">
+    <div style="text-align: left; max-width: 400px; font-size: 14px">
+        KERNEL 2.1.0-DOS_MOD<br>
+        MEMORY CHECK.........OK<br>
+        GPS_MODULE...........WAIT<br>
+        GYRO_SENSOR..........WAIT<br>
+        3D_ENGINE_GPU_LINK...WAIT<br>
+        <br>
+        SYSTEM_STATUS: <span class="blink">READY</span>
+    </div>
+    <button id="initBtn">C:\> LOAD_PATH_TRACKER.EXE</button>
+</div>
+
+<div id="ui-overlay">
+    <div class="hud-top-left">
+        <div class="stat-block neon-text" style="font-size: 18px;">PATH_TRACE</div>
+        <div class="stat-block">
+            <span class="label">Lat</span><span class="value" id="lat">50.4501</span><br>
+            <span class="label">Lon</span><span class="value" id="lon">30.5234</span><br>
+            <span class="label">Alt</span><span class="value" id="alt">0.0</span> m
+        </div>
+    </div>
+    <div class="hud-top-right">
+        <div class="stat-block">
+            <span class="label">HDG</span><span class="value" id="dir">0</span>°
+        </div>
+        <div class="stat-block">
+            <span class="label">POINTS</span><span class="value" id="points_count">0</span> / 10K<br>
+            <span class="label">Z_SCALE</span><span class="value">1.0X</span>
+        </div>
+    </div>
+    <div class="hud-bottom-left">
+        <div>SYS_TIME: <span id="sys_time"></span></div>
+        <div>SCANNING... <span class="blink">_</span></div>
+    </div>
+</div>
+
+<div id="map"></div>
+
+<script>
+    let map, scene, renderer, camera, lineMesh;
+    const MAX_POINTS = 10000;
+    
+    // Массив для хранения точек пути: [x, y, z, время, ...]
+    let pathPositions = new Float32Array(MAX_POINTS * 3);
+    let pathColors = new Float32Array(MAX_POINTS * 3);
+    let pointIndex = 0;
+
+    // Сдвиг по высоте, чтобы линия не сливалась с землей
+    const ALTITUDE_OFFSET_METERS = 2.0;
+
+    // Инициализация карты в стиле 'Dark Matter' с контурными зданиями
+    map = new maplibregl.Map({
+        container: 'map',
+        style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
+        center: [30.5234, 50.4501], // Киев (заменится на ваш GPS)
+        zoom: 17,
+        pitch: 60,
+        bearing: 0,
+        antialias: true
+    });
+
+    // Custom Three.js слой
+    const customLayer = {
+        id: '3d-path-line-layer',
+        type: 'custom',
+        renderingMode: '3d',
+        onAdd: function (map, gl) {
+            renderer = new THREE.WebGLRenderer({
+                canvas: map.getCanvas(),
+                context: gl,
+                antialias: true
+            });
+            renderer.autoClear = false;
+
+            scene = new THREE.Scene();
+            camera = new THREE.Camera();
+
+            // Создаем геометрию для непрерывной линии
+            const geometry = new THREE.BufferGeometry();
+            
+            // Инициализируем атрибуты нулями
+            geometry.setAttribute('position', new THREE.BufferAttribute(pathPositions, 3));
+            geometry.setAttribute('color', new THREE.BufferAttribute(pathColors, 3));
+
+            // Материал с поддержкой Vertex Colors (градиент по длине)
+            const material = new THREE.LineBasicMaterial({ 
+                vertexColors: true, 
+                linewidth: 2, // На мобильных часто игнорируется, но нужно для структуры
+                blending: THREE.AdditiveBlending, // Эффект свечения
+                transparent: true
+            });
+
+            lineMesh = new THREE.Line(geometry, material);
+            scene.add(lineMesh);
+        },
+        render: function (gl, matrix) {
+            const m = new THREE.Matrix4().fromArray(matrix);
+            renderer.resetState();
+            
+            // Важно: на мобильных координатах Меркатора огромны,
+            // Three.js работает корректно только если мы передаем саму матрицу вида
+            lineMesh.modelViewMatrix = m;
+            
+            renderer.render(scene, camera);
+            map.triggerRepaint();
+        }
+    };
+
+    map.on('load', () => {
+        // Добавляем 3D контуры зданий
+        map.addLayer({
+            'id': '3d-buildings-outline',
+            'source': 'openmaptiles',
+            'source-layer': 'building',
+            'type': 'fill-extrusion',
+            'paint': {
+                'fill-extrusion-color': '#001100', // Почти черный залив
+                'fill-extrusion-height': ['get', 'render_height'],
+                'fill-extrusion-base': ['get', 'render_min_height'],
+                'fill-extrusion-opacity': 0.9
+            }
+        });
+        
+        // Линии контуров зданий поверх заливки (для каркасного стиля)
+        map.addLayer({
+            'id': 'building-outlines',
+            'source': 'openmaptiles',
+            'source-layer': 'building',
+            'type': 'line',
+            'paint': {
+                'line-color': '#006600', // Неоновый контур зданий
+                'line-width': 1
+            }
+        });
+
+        // Земная сетка (Ground Grid как на референсе image_4.png)
+        map.addLayer({
+            'id': 'grid-line',
+            'source': 'openmaptiles',
+            'source-layer': 'road',
+            'type': 'line',
+            'paint': {
+                'line-color': 'rgba(0, 255, 0, 0.05)',
+                'line-width': 0.5
+            }
+        });
+
+        map.addLayer(customLayer);
+    });
+
+    // Обновление координат и отрисовка линии пути
+    function handlePosition(pos) {
+        const { longitude, latitude, altitude } = pos.coords;
+        const rawAlt = altitude || 0;
+        
+        // Приподнимаем линию, чтобы она не "тонула" в дорогах
+        const renderingAlt = rawAlt + ALTITUDE_OFFSET_METERS;
+
+        // UI
+        document.getElementById('lat').innerText = latitude.toFixed(5);
+        document.getElementById('lon').innerText = longitude.toFixed(5);
+        document.getElementById('alt').innerText = rawAlt.toFixed(1);
+
+        // Конвертация в локальные координаты карты
+        const modelCoord = maplibregl.MercatorCoordinate.fromLngLat([longitude, latitude], renderingAlt);
+
+        // Добавляем координаты в BufferGeometry
+        pathPositions[pointIndex * 3] = modelCoord.x;
+        pathPositions[pointIndex * 3 + 1] = modelCoord.y;
+        pathPositions[pointIndex * 3 + 2] = modelCoord.z;
+
+        // Расчет цвета (градиент от зеленого к желтому по мере накопления точек)
+        // Зеленый на старте, желтый в конце
+        const t = pointIndex / MAX_POINTS;
+        pathColors[pointIndex * 3] = t;       // Red растет
+        pathColors[pointIndex * 3 + 1] = 1.0;  // Green всегда максимум
+        pathColors[pointIndex * 3 + 2] = 0.0;  // Blue ноль
+
+        // Сигнализируем Three.js, что данные BufferGeometry изменились
+        lineMesh.geometry.attributes.position.needsUpdate = true;
+        lineMesh.geometry.attributes.color.needsUpdate = true;
+
+        // Устанавливаем видимый диапазон линии (drawRange)
+        lineMesh.geometry.setDrawRange(0, pointIndex + 1);
+
+        pointIndex++;
+        if (pointIndex >= MAX_POINTS) pointIndex = 0; // Зацикливание при переполнении
+
+        document.getElementById('points_count').innerText = pointIndex;
+
+        // Плавное слежение камеры (easeTo)
+        map.easeTo({ center: [longitude, latitude], duration: 1500 });
+    }
+
+    // Гироскоп (Bearing)
+    function handleOrientation(e) {
+        if (e.alpha !== null) {
+            map.setBearing(e.alpha);
+            document.getElementById('dir').innerText = Math.round(e.alpha);
+        }
+    }
+
+    // Системное время (DOS HUD)
+    setInterval(() => {
+        const d = new Date();
+        document.getElementById('sys_time').innerText = d.toTimeString().substring(0, 8);
+    }, 1000);
+
+    // Логика запуска
+    document.getElementById('initBtn').addEventListener('click', async () => {
+        document.getElementById('start-screen').style.display = 'none';
+
+        if ("geolocation" in navigator) {
+            // Постоянное отслеживание GPS
+            navigator.geolocation.watchPosition(handlePosition, null, {
+                enableHighAccuracy: true,
+                maximumAge: 1000
+            });
+        }
+
+        // Запрос Гироскопа
+        if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+            const p = await DeviceOrientationEvent.requestPermission();
+            if (p === 'granted') window.addEventListener('deviceorientation', handleOrientation);
+        } else {
+            window.addEventListener('deviceorientation', handleOrientation);
+        }
+    });
+
+</script>
+
+</body>
+</html>
