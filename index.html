@@ -2,217 +2,189 @@
 <html lang="uk">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Читайлик: Вчимо склади</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0">
+  <title>Читайлик Light</title>
   
   <style>
     :root {
       --primary: #FF9F43;
       --secondary: #48DBFB;
-      --success: #1DD1A1;
-      --bg: #F7F1E3;
-      --text: #2C3E50;
+      --bg: #FFFFFF;
+      --card: #F8F9FA;
     }
 
     body { 
       margin: 0; background: var(--bg); 
-      font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-      color: var(--text); overflow-x: hidden;
+      font-family: -apple-system, system-ui, sans-serif;
+      overflow: hidden; touch-action: manipulation;
     }
 
-    /* Экран старта */
+    /* Стартовый экран */
     #preloader {
       position: fixed; inset: 0; background: var(--primary);
-      z-index: 1000; display: flex; flex-direction: column;
+      z-index: 100; display: flex; flex-direction: column;
       justify-content: center; align-items: center; color: white;
     }
 
-    .start-btn {
-      padding: 20px 50px; font-size: 28px; border: none;
-      border-radius: 20px; background: white; color: var(--primary);
-      cursor: pointer; font-weight: bold; box-shadow: 0 10px 0 #E67E22;
-      transition: 0.2s;
-    }
-    .start-btn:active { transform: translateY(5px); box-shadow: 0 5px 0 #E67E22; }
-
-    /* Контейнер */
-    #app { visibility: hidden; padding: 20px; display: flex; flex-direction: column; align-items: center; }
-
-    .main-card {
-      background: white; width: 100%; max-width: 600px;
-      border-radius: 30px; padding: 30px; box-sizing: border-box;
-      box-shadow: 0 15px 35px rgba(0,0,0,0.1); text-align: center;
-      border: 5px solid var(--secondary);
+    .btn-big {
+      padding: 18px 45px; font-size: 24px; border: none;
+      border-radius: 50px; background: white; color: var(--primary);
+      font-weight: bold; box-shadow: 0 6px 0 #E67E22;
     }
 
-    /* Показ слова */
-    #word-display { font-size: 64px; font-weight: 900; color: var(--text); margin: 20px 0; min-height: 80px; }
-    #syllables-area { font-size: 36px; color: var(--primary); margin-bottom: 20px; min-height: 50px; }
-    .syllable { display: inline-block; padding: 0 5px; transition: transform 0.3s; }
-    .active-syl { color: var(--success); transform: scale(1.3); font-weight: bold; }
+    /* Основной экран */
+    #app { 
+      display: none; height: 100vh; flex-direction: column; 
+      padding: 20px; box-sizing: border-box; 
+    }
 
-    /* Поле ввода */
-    .input-group { width: 100%; display: flex; gap: 10px; margin-top: 20px; }
+    .display-box {
+      flex: 1; display: flex; flex-direction: column;
+      justify-content: center; align-items: center;
+      background: var(--card); border-radius: 25px;
+      border: 4px dashed var(--secondary); margin-bottom: 20px;
+    }
+
+    #word-main { 
+      font-size: clamp(40px, 12vw, 80px); 
+      font-weight: 800; margin-bottom: 10px; text-align: center;
+    }
+
+    #syllables-box { 
+      font-size: clamp(20px, 6vw, 36px); 
+      color: var(--primary); min-height: 40px; 
+    }
+
+    .syllable { display: inline-block; transition: all 0.2s ease; margin: 0 2px; }
+    .active { color: #1DD1A1; transform: scale(1.2); font-weight: bold; }
+
+    /* Управление */
+    .controls { display: flex; gap: 10px; width: 100%; }
     input { 
-      flex: 1; padding: 15px; border-radius: 15px; border: 2px solid #ddd;
-      font-size: 18px; outline: none; 
+      flex: 1; padding: 15px; border-radius: 12px; border: 2px solid #ddd;
+      font-size: 16px; -webkit-appearance: none;
     }
-    input:focus { border-color: var(--secondary); }
-    
-    .action-btn {
-      padding: 10px 25px; border-radius: 15px; border: none;
-      background: var(--secondary); color: white; font-weight: bold; cursor: pointer;
+    .go-btn { 
+      background: var(--secondary); color: white; border: none;
+      padding: 0 20px; border-radius: 12px; font-weight: bold;
     }
 
-    /* Микрофон и статус */
-    .mic-status { margin-top: 15px; font-size: 14px; color: #888; font-weight: bold; }
-    .listening { color: #EE5253; animation: blink 1s infinite; }
-    @keyframes blink { 50% { opacity: 0; } }
+    #status { 
+      text-align: center; font-size: 12px; margin-top: 10px; 
+      color: #999; text-transform: uppercase; letter-spacing: 1px;
+    }
+    .pulse { color: red; animation: blink 1s infinite; }
+    @keyframes blink { 50% { opacity: 0.3; } }
   </style>
 </head>
 <body>
 
   <div id="preloader">
-    <h1 style="font-size: 50px; margin-bottom: 20px;">🤖 ЧИТАЙЛИК</h1>
-    <button class="start-btn" onclick="initApp()">ГРАТИ!</button>
-    <p style="margin-top: 15px;">Натисни, щоб увімкнути мікрофон та звук</p>
+    <h1 style="margin-bottom:20px">🤖 ЧИТАЙЛИК</h1>
+    <button class="btn-big" onclick="init()">ПОЧАТИ</button>
   </div>
 
   <div id="app">
-    <div class="main-card">
-      <div id="word-display">ПРИВІТ!</div>
-      <div id="syllables-area"></div>
-      
-      <div class="input-group">
-        <input type="text" id="manual-input" placeholder="Напиши слово тут...">
-        <button class="action-btn" onclick="processManual()">ЧИТАТИ</button>
-      </div>
-      
-      <div id="mic-indicator" class="mic-status">СЛУХАЮ ТЕБЕ...</div>
+    <div class="display-box">
+      <div id="word-main">...</div>
+      <div id="syllables-box"></div>
     </div>
     
-    <p style="margin-top: 20px; color: #666; text-align: center;">
-      Скажи слово вголос або напиши його в полі вище
-    </p>
+    <div class="controls">
+      <input type="text" id="inp" placeholder="Напиши слово...">
+      <button class="go-btn" onclick="manual()">ОК</button>
+    </div>
+    <div id="status">Очікування...</div>
   </div>
 
   <script>
-    const wordDisplay = document.getElementById('word-display');
-    const syllablesArea = document.getElementById('syllables-area');
-    const manualInput = document.getElementById('manual-input');
-    const micIndicator = document.getElementById('mic-indicator');
+    const wordEl = document.getElementById('word-main');
+    const sylEl = document.getElementById('syllables-box');
+    const statusEl = document.getElementById('status');
+    const inputEl = document.getElementById('inp');
+    
+    let isSpeaking = false;
+    let lastWord = "";
 
-    // Настройка голоса
-    let ukVoice = null;
-    function loadVoices() {
-      const voices = window.speechSynthesis.getVoices();
-      ukVoice = voices.find(v => v.lang.includes('uk') || v.lang.includes('UA'));
-    }
-    window.speechSynthesis.onvoiceschanged = loadVoices;
-
-    // Алгоритм слогов (улучшенный)
-    function getSyllables(word) {
+    function splitSyllables(word) {
       const vowels = "аоуиіеяюєї";
-      const result = [];
-      let current = "";
-      
+      let res = [];
+      let cur = "";
       for (let i = 0; i < word.length; i++) {
-        current += word[i];
+        cur += word[i];
         if (vowels.includes(word[i].toLowerCase())) {
-          // Если дальше есть еще гласные — это конец склада
-          let hasMoreVowels = false;
+          let hasNextVowel = false;
           for (let j = i + 1; j < word.length; j++) {
-            if (vowels.includes(word[j].toLowerCase())) { hasMoreVowels = true; break; }
+            if (vowels.includes(word[j].toLowerCase())) { hasNextVowel = true; break; }
           }
-          if (hasMoreVowels) {
-            result.push(current);
-            current = "";
-          }
+          if (hasNextVowel) { res.push(cur); cur = ""; }
         }
       }
-      result.push(current);
-      // Если последний "хвост" без гласной, приклеиваем к предыдущему
-      if (result.length > 1 && !Array.from(result[result.length-1]).some(c => vowels.includes(c.toLowerCase()))) {
-        const last = result.pop();
-        result[result.length-1] += last;
+      res.push(cur);
+      if (res.length > 1 && !/[аоуиіеяюєї]/i.test(res[res.length-1])) {
+        res[res.length-2] += res.pop();
       }
-      return result.filter(s => s.length > 0);
+      return res.filter(s => s);
     }
 
-    // Озвучка слогов ПО ОЧЕРЕДИ
-    async function speakSequence(syllables) {
-      window.speechSynthesis.cancel(); // Остановить текущую озвучку
+    async function say(word) {
+      if (isSpeaking || !word || word === lastWord) return;
+      isSpeaking = true;
+      lastWord = word;
+      
+      const syllables = splitSyllables(word);
+      wordEl.innerText = word.toUpperCase();
       
       for (let i = 0; i < syllables.length; i++) {
-        // Подсвечиваем склад в интерфейсе
-        updateSyllableUI(syllables, i);
-        
-        await new Promise((resolve) => {
-          const utterance = new SpeechSynthesisUtterance(syllables[i]);
-          utterance.lang = 'uk-UA';
-          if (ukVoice) utterance.voice = ukVoice;
-          utterance.rate = 0.6; // Медленно для ребенка
-          utterance.pitch = 1.2; // Чуть выше голос
-          
-          utterance.onend = resolve;
-          utterance.onerror = resolve;
-          window.speechSynthesis.speak(utterance);
+        // Отрисовка слогов
+        sylEl.innerHTML = syllables.map((s, idx) => 
+          `<span class="syllable ${idx === i ? 'active' : ''}">${s}</span>`
+        ).join(' · ');
+
+        await new Promise(resolve => {
+          const u = new SpeechSynthesisUtterance(syllables[i]);
+          u.lang = 'uk-UA';
+          u.rate = 0.7;
+          u.onend = resolve;
+          u.onerror = resolve;
+          window.speechSynthesis.speak(u);
         });
       }
-      // В конце подсвечиваем всё слово
-      updateSyllableUI(syllables, -1);
-    }
-
-    function updateSyllableUI(syllables, activeIndex) {
-      syllablesArea.innerHTML = syllables.map((s, i) => 
-        `<span class="syllable ${i === activeIndex ? 'active-syl' : ''}">${s}</span>`
-      ).join(' • ');
-    }
-
-    function processWord(text) {
-      const clean = text.trim().toLowerCase().replace(/[^а-яіїєґ]/g, '');
-      if (!clean) return;
       
-      wordDisplay.innerText = clean.toUpperCase();
-      const syllables = getSyllables(clean);
-      speakSequence(syllables);
+      sylEl.innerHTML = syllables.map(s => `<span class="syllable">${s}</span>`).join(' · ');
+      isSpeaking = false;
+      setTimeout(() => { lastWord = ""; }, 2000); // Сброс памяти слова через 2 сек
     }
 
-    function processManual() {
-      processWord(manualInput.value);
-      manualInput.value = "";
-    }
-
-    function initApp() {
-      document.getElementById('preloader').style.display = 'none';
-      document.getElementById('app').style.visibility = 'visible';
-      loadVoices();
-      initSpeech();
-    }
-
-    function initSpeech() {
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (!SpeechRecognition) {
-        micIndicator.innerText = "ГОЛОСОВИЙ ВВІД НЕ ПІДТРИМУЄТЬСЯ";
-        return;
+    function manual() {
+      if (inputEl.value) {
+        say(inputEl.value.trim().toLowerCase());
+        inputEl.value = "";
+        inputEl.blur(); // Спрятать клавиатуру на мобилках
       }
+    }
 
-      const recognition = new SpeechRecognition();
-      recognition.continuous = true;
-      recognition.lang = 'uk-UA';
-
-      recognition.onstart = () => {
-        micIndicator.innerText = "🎤 Я СЛУХАЮ... ГОВОРИ!";
-        micIndicator.classList.add('listening');
-      };
-
-      recognition.onresult = (event) => {
-        const result = event.results[event.results.length - 1][0].transcript;
-        processWord(result.split(' ').pop()); // Берем последнее сказанное слово
-      };
-
-      recognition.onend = () => recognition.start();
-      recognition.start();
+    function init() {
+      document.getElementById('preloader').style.display = 'none';
+      document.getElementById('app').style.display = 'flex';
+      
+      // Голосовой ввод
+      const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (Recognition) {
+        const rec = new Recognition();
+        rec.lang = 'uk-UA';
+        rec.continuous = true;
+        rec.onstart = () => { statusEl.innerText = "🎤 Слухаю..."; statusEl.classList.add('pulse'); };
+        rec.onresult = (e) => {
+          const text = e.results[e.results.length-1][0].transcript;
+          const word = text.split(' ').pop().toLowerCase().replace(/[^а-яіїєґ]/g, '');
+          if (word.length > 1) say(word);
+        };
+        rec.onend = () => rec.start();
+        rec.start();
+      } else {
+        statusEl.innerText = "Голосовий ввід не підтримується";
+      }
     }
   </script>
 </body>
