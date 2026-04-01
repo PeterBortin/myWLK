@@ -1,194 +1,204 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="uk">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TERMINAL_TRACKER_PRO</title>
-    <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
-    <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
-    <link href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet" />
-    <style>
-        :root { --g: #00ff00; --bg: #000; }
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: var(--bg); font-family: 'Courier New', monospace; color: var(--g); user-select: none; -webkit-user-select: none; touch-action: none; }
-        #map { position: absolute; top: 0; width: 100%; height: 100%; z-index: 1; }
-        
-        /* HUD */
-        #hud { position: absolute; inset: 0; z-index: 10; pointer-events: none; padding: 20px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; border: 1px solid rgba(0,255,0,0.2); }
-        .panel { background: rgba(0,0,0,0.7); border: 1px solid var(--g); padding: 10px; pointer-events: auto; }
-        .top-ui { display: flex; justify-content: space-between; }
-        .bot-ui { display: flex; align-items: flex-end; justify-content: space-between; }
-        
-        button { background: var(--bg); color: var(--g); border: 1px solid var(--g); padding: 5px 10px; cursor: pointer; font-family: inherit; font-size: 10px; margin: 2px; }
-        button:active { background: var(--g); color: var(--bg); }
-        button.active { background: #004400; box-shadow: 0 0 10px var(--g); }
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Вчимося Читати Разом!</title>
+  
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils"></script>
 
-        #start-mask { position: absolute; inset: 0; z-index: 100; background: #000; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
-        .blink { animation: b 1s infinite; }
-        @keyframes b { 50% { opacity: 0; } }
-        .log { font-size: 10px; color: rgba(0,255,0,0.5); text-align: left; width: 250px; }
-    </style>
+  <style>
+    :root {
+      --bg-color: #f0f9ff;
+      --accent-color: #ff6b6b;
+      --secondary-color: #4ecdc4;
+      --text-main: #2d3436;
+    }
+
+    body { 
+      margin: 0; 
+      background: var(--bg-color); 
+      overflow: hidden; 
+      font-family: 'Comic Sans MS', 'Chalkboard SE', sans-serif; 
+      color: var(--text-main); 
+    }
+
+    /* Экран приветствия */
+    #preloader {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: #fff; z-index: 200; display: flex;
+      flex-direction: column; justify-content: center; align-items: center;
+      text-align: center;
+    }
+
+    #start-btn {
+      background: var(--accent-color); border: none; color: #fff;
+      padding: 20px 40px; cursor: pointer; border-radius: 50px;
+      font-size: 24px; font-weight: bold; box-shadow: 0 10px 0 #d64545;
+      transition: 0.2s;
+    }
+    #start-btn:active { transform: translateY(5px); box-shadow: 0 5px 0 #d64545; }
+
+    /* Основной интерфейс */
+    #container { 
+      position: relative; width: 100vw; height: 100vh; 
+      display: flex; flex-direction: column; align-items: center; visibility: hidden; 
+    }
+
+    .output_canvas {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      object-fit: cover; transform: scaleX(-1); z-index: 1; opacity: 0.8;
+    }
+
+    /* Панель слова */
+    .word-display-area {
+      position: relative; z-index: 10; margin-top: 50px;
+      background: rgba(255, 255, 255, 0.9);
+      padding: 30px; border-radius: 30px; border: 8px solid var(--secondary-color);
+      min-width: 300px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    }
+
+    #word-output { font-size: 80px; letter-spacing: 5px; color: #2d3436; margin-bottom: 10px; }
+    #syllables-output { font-size: 40px; color: var(--accent-color); font-weight: bold; }
+
+    /* Нижняя панель */
+    .bottom-ui {
+      position: absolute; bottom: 40px; z-index: 10; width: 90%;
+      background: white; border-radius: 20px; padding: 20px;
+      box-shadow: 0 -5px 20px rgba(0,0,0,0.05); text-align: center;
+    }
+
+    .status-badge { display: inline-block; padding: 5px 15px; border-radius: 20px; background: #eee; font-size: 14px; }
+    .pulse { animation: pulse-red 1.5s infinite; }
+    @keyframes pulse-red { 0% { color: #888; } 50% { color: red; } 100% { color: #888; } }
+    
+    .input_video { display: none; }
+  </style>
 </head>
+
 <body>
 
-<div id="start-mask">
-    <div class="log" id="syslog">
-        > INITIALIZING CORE...<br>
-        > LOADING GEOMETRY_ENGINE...<br>
-        > MAPPING GPU_RESOURCES...<br>
+  <div id="preloader">
+    <h1 style="font-size: 48px; color: var(--accent-color);">Привіт! Давай вчитися?</h1>
+    <p style="margin-bottom: 30px;">Натисни кнопку, щоб розпочати</p>
+    <button id="start-btn" onclick="startApp()">ГРАТИ</button>
+  </div>
+
+  <div id="container">
+    <video class="input_video" playsinline muted></video>
+    <canvas class="output_canvas"></canvas>
+
+    <div class="word-display-area">
+      <div id="word-output">ГОВОРИ!</div>
+      <div id="syllables-output"></div>
     </div>
-    <button id="run" style="font-size: 20px; padding: 20px;">[ EXECUTE_SYSTEM ]</button>
-</div>
 
-<div id="hud">
-    <div class="top-ui">
-        <div class="panel">
-            ID: TRACE_NODE_01<br>
-            POS: <span id="cur_pos">0.0, 0.0</span><br>
-            ALT: <span id="cur_alt">0.0</span>m
-        </div>
-        <div class="panel" style="text-align: right;">
-            DATA_STREAM: <span class="blink">REC</span><br>
-            FPS: <span id="fps">60</span><br>
-            POINTS: <span id="pt_count">0</span>
-        </div>
+    <div class="bottom-ui">
+      <div id="status" class="status-badge">СЛУХАЮ ТЕБЕ...</div>
+      <p style="font-size: 14px; color: #999; margin-top: 10px;">Скажи слово українською мовою</p>
     </div>
+  </div>
+
+  <script>
+    const wordOutput = document.getElementById('word-output');
+    const syllablesOutput = document.getElementById('syllables-output');
+    const statusLabel = document.getElementById('status');
     
-    <div class="bot-ui">
-        <div class="panel">
-            <button id="lock_cam">LOCK_CAM: OFF</button><br>
-            <button id="clear_path">RESET_BUFFER</button>
-        </div>
-        <div class="panel">
-            Z_BIAS: <button id="z_up">+</button><button id="z_down">-</button> <span id="z_val">1.0</span>x<br>
-            <button id="dump">DUMP_LOG_JSON</button>
-        </div>
-    </div>
-</div>
-
-<div id="map"></div>
-
-<script>
-let map, scene, renderer, camera, line;
-let pointIdx = 0;
-let zBias = 1.0;
-let isLocked = false;
-const MAX = 10000;
-const posArr = new Float32Array(MAX * 3);
-const colArr = new Float32Array(MAX * 3);
-
-// Инициализация карты
-map = new maplibregl.Map({
-    container: 'map',
-    style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
-    center: [0, 0], zoom: 2, pitch: 60, antialias: true
-});
-
-const customLayer = {
-    id: '3d-trace', type: 'custom', renderingMode: '3d',
-    onAdd: (map, gl) => {
-        renderer = new THREE.WebGLRenderer({ canvas: map.getCanvas(), context: gl, antialias: true });
-        renderer.autoClear = false;
-        scene = new THREE.Scene();
-        camera = new THREE.Camera();
-        const geo = new THREE.BufferGeometry();
-        geo.setAttribute('position', new THREE.BufferAttribute(posArr, 3));
-        geo.setAttribute('color', new THREE.BufferAttribute(colArr, 3));
-        line = new THREE.Line(geo, new THREE.LineBasicMaterial({ vertexColors: true, blending: THREE.AdditiveBlending }));
-        scene.add(line);
-    },
-    render: (gl, matrix) => {
-        renderer.resetState();
-        line.modelViewMatrix = new THREE.Matrix4().fromArray(matrix);
-        renderer.render(scene, camera);
-        map.triggerRepaint();
+    // Функція розбиття на склади (Спрощений алгоритм для української)
+    function splitIntoSyllables(word) {
+      const vowels = "аоуиіеяюєї";
+      let syllables = [];
+      let currentSyllable = "";
+      
+      const chars = word.toLowerCase().split('');
+      
+      for (let i = 0; i < chars.length; i++) {
+        currentSyllable += chars[i];
+        // Якщо поточна літера - голосна
+        if (vowels.includes(chars[i])) {
+          // Дивимось, чи є далі голосні
+          let hasMoreVowels = false;
+          for (let j = i + 1; j < chars.length; j++) {
+            if (vowels.includes(chars[j])) { hasMoreVowels = true; break; }
+          }
+          
+          if (hasMoreVowels) {
+            // Перевірка наступної літери (якщо приголосна + голосна, склад розриваємо)
+            syllables.push(currentSyllable);
+            currentSyllable = "";
+          }
+        }
+      }
+      if (currentSyllable) {
+        if (syllables.length > 0 && !vowels.split('').some(v => currentSyllable.includes(v))) {
+          syllables[syllables.length - 1] += currentSyllable;
+        } else {
+          syllables.push(currentSyllable);
+        }
+      }
+      return syllables;
     }
-};
 
-map.on('load', () => {
-    // 3D Здания контурные
-    map.addLayer({
-        'id': '3d-b', 'source': 'openmaptiles', 'source-layer': 'building', 'type': 'fill-extrusion',
-        'paint': { 'fill-extrusion-color': '#001a00', 'fill-extrusion-height': ['get', 'render_height'], 'fill-extrusion-opacity': 0.8 }
-    });
-    map.addLayer({
-        'id': '3d-line', 'source': 'openmaptiles', 'source-layer': 'building', 'type': 'line',
-        'paint': { 'line-color': '#00ff00', 'line-width': 0.5, 'line-opacity': 0.3 }
-    });
-    map.addLayer(customLayer);
-});
-
-// Обработка данных
-function update(pos) {
-    const { longitude: lon, latitude: lat, altitude: alt } = pos.coords;
-    const a = (alt || 0) * zBias;
-    
-    document.getElementById('cur_pos').innerText = `${lat.toFixed(4)},${lon.toFixed(4)}`;
-    document.getElementById('cur_alt').innerText = a.toFixed(1);
-
-    const m = maplibregl.MercatorCoordinate.fromLngLat([lon, lat], a);
-    
-    posArr[pointIdx * 3] = m.x;
-    posArr[pointIdx * 3 + 1] = m.y;
-    posArr[pointIdx * 3 + 2] = m.z;
-
-    // Цвет: градиент от зеленого к желтому
-    const ratio = pointIdx / MAX;
-    colArr[pointIdx * 3] = ratio;
-    colArr[pointIdx * 3 + 1] = 1;
-    colArr[pointIdx * 3 + 2] = 0;
-
-    line.geometry.attributes.position.needsUpdate = true;
-    line.geometry.attributes.color.needsUpdate = true;
-    line.geometry.setDrawRange(0, pointIdx + 1);
-    
-    if (isLocked) {
-        map.easeTo({ center: [lon, lat], duration: 1000, easing: n => n });
+    // Озвучка по складах
+    function speakSyllables(syllables) {
+      const synth = window.speechSynthesis;
+      let delay = 0;
+      
+      syllables.forEach((syl, index) => {
+        setTimeout(() => {
+          const utter = new SpeechSynthesisUtterance(syl);
+          utter.lang = 'uk-UA';
+          utter.rate = 0.8;
+          synth.speak(utter);
+          
+          // Візуальна підсвітка складу
+          const spans = syllablesOutput.querySelectorAll('span');
+          spans.forEach(span => span.style.color = '#ff6b6b');
+          if(spans[index]) spans[index].style.color = '#4ecdc4';
+        }, delay);
+        delay += 800; // Пауза між складами
+      });
     }
-    
-    pointIdx = (pointIdx + 1) % MAX;
-    document.getElementById('pt_count').innerText = pointIdx;
-}
 
-// Контролы
-document.getElementById('run').onclick = async () => {
-    document.getElementById('syslog').innerHTML += "> ACCESSING GEO_DATA...<br>> STABILIZING GYRO...<br>";
-    
-    if (typeof DeviceOrientationEvent.requestPermission === 'function') {
-        await DeviceOrientationEvent.requestPermission();
+    async function startApp() {
+      document.getElementById('preloader').style.display = 'none';
+      document.getElementById('container').style.visibility = 'visible';
+
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+      document.querySelector('.input_video').srcObject = stream;
+
+      initSpeechRecognition();
     }
-    
-    navigator.geolocation.watchPosition(update, (e) => console.error(e), { enableHighAccuracy: true });
-    window.addEventListener('deviceorientation', (e) => {
-        if (isLocked && e.alpha) map.setBearing(e.alpha);
-    });
 
-    setTimeout(() => document.getElementById('start-mask').remove(), 1000);
-};
+    function initSpeechRecognition() {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRecognition) return alert("Браузер не підтримує розпізнавання мови.");
 
-document.getElementById('lock_cam').onclick = (e) => {
-    isLocked = !isLocked;
-    e.target.innerText = `LOCK_CAM: ${isLocked ? 'ON' : 'OFF'}`;
-    e.target.classList.toggle('active');
-};
+      const recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.lang = 'uk-UA';
 
-document.getElementById('z_up').onclick = () => { zBias += 0.5; document.getElementById('z_val').innerText = zBias.toFixed(1); };
-document.getElementById('z_down').onclick = () => { zBias = Math.max(0, zBias - 0.5); document.getElementById('z_val').innerText = zBias.toFixed(1); };
-document.getElementById('clear_path').onclick = () => { pointIdx = 0; line.geometry.setDrawRange(0, 0); };
-document.getElementById('dump').onclick = () => { 
-    const data = Array.from(posArr.slice(0, pointIdx * 3));
-    console.log("PATH_DUMP:", JSON.stringify(data));
-    alert("DATA DUMPED TO CONSOLE");
-};
+      recognition.onresult = (event) => {
+        const transcript = event.results[event.results.length - 1][0].transcript.trim().toLowerCase();
+        const cleanWord = transcript.split(' ').pop(); // Беремо останнє слово
+        
+        wordOutput.innerText = cleanWord.toUpperCase();
+        
+        const syllables = splitIntoSyllables(cleanWord);
+        syllablesOutput.innerHTML = syllables.map(s => `<span>${s}</span>`).join(' • ');
+        
+        speakSyllables(syllables);
+      };
 
-// FPS Counter
-let last = performance.now();
-function anim() {
-    const now = performance.now();
-    document.getElementById('fps').innerText = Math.round(1000 / (now - last));
-    last = now;
-    requestAnimationFrame(anim);
-}
-anim();
-</script>
+      recognition.onstart = () => {
+        statusLabel.innerText = "Я СЛУХАЮ...";
+        statusLabel.classList.add('pulse');
+      };
+
+      recognition.onend = () => { recognition.start(); };
+      recognition.start();
+    }
+  </script>
 </body>
 </html>
