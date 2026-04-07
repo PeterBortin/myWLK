@@ -3,11 +3,11 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0">
-  <title>Читайлик — Вчимося читати</title>
+  <title>Читайлик — Навчання по складах</title>
   <style>
     :root { 
-      --p: #FF6B6B; /* Колір полуниці */
-      --s: #4ECDC4; /* М'ятний */
+      --p: #FF6B6B; 
+      --s: #4ECDC4; 
       --bg: #F0F4F8; 
       --text: #2D3436;
     }
@@ -15,10 +15,9 @@
     body { 
       margin: 0; background: var(--bg); font-family: 'Segoe UI', Roboto, sans-serif; 
       height: 100vh; display: flex; flex-direction: column; overflow: hidden;
-      -webkit-user-select: none; user-select: none;
+      -webkit-user-select: none; user-select: none; touch-action: manipulation;
     }
 
-    /* Стартовий екран */
     #overlay { 
       position: fixed; inset: 0; background: var(--s); z-index: 100; 
       display: flex; flex-direction: column; justify-content: center; align-items: center; color: white;
@@ -26,71 +25,60 @@
     .start-btn {
       padding: 25px 60px; font-size: 28px; border-radius: 50px; border: none; 
       background: white; color: var(--s); font-weight: bold; cursor: pointer;
-      box-shadow: 0 10px 0 #3dbbb3; transition: transform 0.1s;
+      box-shadow: 0 10px 0 #3dbbb3;
     }
-    .start-btn:active { transform: translateY(5px); box-shadow: 0 5px 0 #3dbbb3; }
 
     #main { display: none; flex: 1; flex-direction: column; padding: 20px; max-width: 600px; margin: 0 auto; width: 100%; box-sizing: border-box; }
     
-    /* Картка зі словом */
     .word-area {
       flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center;
       background: white; border-radius: 40px; box-shadow: 0 15px 35px rgba(0,0,0,0.1); 
-      margin-bottom: 25px; border: 4px solid #E1E8ED; padding: 20px;
+      margin-bottom: 25px; border: 4px solid #E1E8ED; padding: 20px; text-align: center;
     }
-    #big-word { font-size: 64px; font-weight: 900; color: var(--text); text-align: center; letter-spacing: 2px; line-height: 1.2; }
-    #syl-view { font-size: 36px; color: #A0AEC0; margin-top: 20px; min-height: 44px; }
-    .active-syl { color: var(--p); transform: scale(1.2); display: inline-block; transition: 0.2s; }
+    #big-word { font-size: clamp(40px, 12vw, 70px); font-weight: 900; color: var(--text); letter-spacing: 2px; }
+    #syl-view { font-size: 30px; color: #A0AEC0; margin-top: 20px; min-height: 40px; }
+    .active-syl { color: var(--p); transform: scale(1.2); display: inline-block; font-weight: bold; }
 
-    /* Кнопка мікрофона */
-    .mic-wrap { display: flex; flex-direction: column; align-items: center; gap: 20px; }
+    .mic-wrap { display: flex; flex-direction: column; align-items: center; gap: 15px; }
     #mic-btn {
-      width: 100px; height: 100px; border-radius: 50%; background: var(--p); 
+      width: 110px; height: 110px; border-radius: 50%; background: var(--p); 
       border: 6px solid white; box-shadow: 0 8px 20px rgba(255,107,107,0.4);
       display: flex; justify-content: center; align-items: center; cursor: pointer;
-      transition: all 0.3s;
+      transition: transform 0.2s; -webkit-tap-highlight-color: transparent;
     }
     #mic-btn.active { 
-      background: #ff4757; transform: scale(1.1); 
-      animation: pulse 1.5s infinite; 
+      background: #ff4757; animation: pulse 1.5s infinite; transform: scale(1.05);
     }
-    @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(255,107,107, 0.7); } 70% { box-shadow: 0 0 0 20px rgba(255,107,107, 0); } 100% { box-shadow: 0 0 0 0 rgba(255,107,107, 0); } }
+    @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(255,107,107, 0.7); } 70% { box-shadow: 0 0 0 25px rgba(255,107,107, 0); } 100% { box-shadow: 0 0 0 0 rgba(255,107,107, 0); } }
 
-    #status { font-size: 18px; color: #718096; font-weight: 600; height: 24px; text-align: center; }
+    #status { font-size: 18px; color: #718096; font-weight: 600; text-align: center; margin-bottom: 10px; min-height: 24px; }
 
-    /* Поле вводу */
-    .input-row { display: flex; gap: 10px; width: 100%; margin-top: 10px; }
+    .input-row { display: flex; gap: 10px; width: 100%; }
     input { 
-      flex: 1; padding: 15px 20px; border-radius: 20px; border: 2px solid #CBD5E0; 
-      font-size: 18px; outline: none; transition: border-color 0.3s;
+      flex: 1; padding: 15px; border-radius: 20px; border: 2px solid #CBD5E0; 
+      font-size: 16px; outline: none;
     }
-    input:focus { border-color: var(--s); }
-    .go-btn { padding: 0 25px; border-radius: 20px; border: none; background: var(--s); color: white; font-weight: bold; font-size: 18px; }
-
-    .hint { font-size: 14px; color: #A0AEC0; margin-top: 10px; }
+    .go-btn { padding: 0 20px; border-radius: 20px; border: none; background: var(--s); color: white; font-weight: bold; }
   </style>
 </head>
 <body>
 
 <div id="overlay">
-  <h1 style="font-size: 40px; margin-bottom: 30px;">Привіт, друже! 👋</h1>
-  <button class="start-btn" onclick="init()">ГРАТИ</button>
-  <p style="margin-top: 20px;">Натисни, щоб почати навчання</p>
+  <h1 style="text-align: center; padding: 0 20px;">Готовий вчитися читати? 👋</h1>
+  <button class="start-btn" onclick="init()">ТАК!</button>
 </div>
 
 <div id="main">
   <div id="status">Натисни кнопку і скажи слово</div>
   <div class="word-area">
-    <div id="big-word">МАМА</div>
+    <div id="big-word">ПРИВІТ</div>
     <div id="syl-view"></div>
-    <div class="hint">Спробуй: «Яблуко», «Киця», «Україна»</div>
   </div>
 
   <div class="mic-wrap">
     <div id="mic-btn">
-      <svg width="40" height="40" viewBox="0 0 24 24" fill="white"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/><path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>
+      <svg width="45" height="45" viewBox="0 0 24 24" fill="white"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/><path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>
     </div>
-    
     <div class="input-row">
       <input type="text" id="manual" placeholder="Напиши слово...">
       <button class="go-btn" onclick="handleInput()">ОК</button>
@@ -101,74 +89,48 @@
 <script>
   let recognition;
   let isSpeaking = false;
+  let isRecording = false;
   const statusTxt = document.getElementById('status');
+  const btn = document.getElementById('mic-btn');
 
-  // Покращений алгоритм складів для української мови
+  // Логіка поділу на склади (Українська мова)
   function getSyllables(word) {
     const vowels = "аоуиіеяюєї";
-    const wordArr = word.toLowerCase().split('');
-    let syllables = [];
-    let currentSyllable = "";
+    const letters = word.toLowerCase().split('');
+    let res = [];
+    let cur = "";
 
-    for (let i = 0; i < wordArr.length; i++) {
-      currentSyllable += wordArr[i];
-      
-      // Якщо це голосна
-      if (vowels.includes(wordArr[i])) {
-        // Перевіряємо, чи є далі голосні
+    for (let i = 0; i < letters.length; i++) {
+      cur += letters[i];
+      if (vowels.includes(letters[i])) {
         let hasMoreVowels = false;
-        for (let j = i + 1; j < wordArr.length; j++) {
-          if (vowels.includes(wordArr[j])) {
-            hasMoreVowels = true;
-            break;
-          }
+        for (let j = i + 1; j < letters.length; j++) {
+          if (vowels.includes(letters[j])) { hasMoreVowels = true; break; }
         }
-
         if (hasMoreVowels) {
-          // Правило: якщо наступна літера - голосна, склад розривається
-          if (vowels.includes(wordArr[i+1])) {
-            syllables.push(currentSyllable);
-            currentSyllable = "";
+          // Якщо далі одна приголосна і голосна — склад закриваємо зараз
+          if (i + 2 < letters.length && !vowels.includes(letters[i+1]) && vowels.includes(letters[i+2])) {
+            res.push(cur); cur = "";
           } 
-          // Якщо після голосної йде одна приголосна + голосна
-          else if (i + 2 < wordArr.length && !vowels.includes(wordArr[i+1]) && vowels.includes(wordArr[i+2])) {
-            syllables.push(currentSyllable);
-            currentSyllable = "";
-          }
-          // Якщо йде група приголосних (спрощено)
-          else if (i + 2 < wordArr.length && !vowels.includes(wordArr[i+1]) && !vowels.includes(wordArr[i+2])) {
-             currentSyllable += wordArr[i+1];
-             i++;
-             syllables.push(currentSyllable);
-             currentSyllable = "";
+          // Якщо дві приголосні — одну беремо в цей склад
+          else if (i + 2 < letters.length && !vowels.includes(letters[i+1]) && !vowels.includes(letters[i+2])) {
+            cur += letters[i+1]; i++;
+            res.push(cur); cur = "";
           }
         }
       }
     }
-    
-    if (currentSyllable) syllables.push(currentSyllable);
-    
-    // Корекція: якщо в останньому складі немає голосної, приєднуємо його до попереднього
-    if (syllables.length > 1) {
-      const last = syllables[syllables.length - 1];
-      const hasVowel = last.split('').some(l => vowels.includes(l));
-      if (!hasVowel) {
-        const lastPart = syllables.pop();
-        syllables[syllables.length - 1] += lastPart;
-      }
-    }
-    
-    return syllables;
+    if (cur) res.push(cur);
+    return res;
   }
 
   async function processWord(word) {
     if (!word || isSpeaking) return;
-    const clean = word.toLowerCase().replace(/[^а-яіїєґ\s-]/gi, '');
-    if (!clean) return;
-
     isSpeaking = true;
-    window.speechSynthesis.cancel();
     
+    const clean = word.toLowerCase().replace(/[^а-яіїєґ]/gi, '');
+    if (!clean) { isSpeaking = false; return; }
+
     document.getElementById('big-word').innerText = clean.toUpperCase();
     const syls = getSyllables(clean);
 
@@ -180,24 +142,21 @@
       await new Promise(resolve => {
         const u = new SpeechSynthesisUtterance(syls[i]);
         u.lang = 'uk-UA';
-        u.rate = 0.5; // Повільно для дитини
-        u.pitch = 1.2; // Трохи вищий "дитячий" голос
+        u.rate = 0.5;
         u.onend = resolve;
         u.onerror = resolve;
         window.speechSynthesis.speak(u);
       });
     }
     
-    // В кінці промовляємо все слово цілком
-    setTimeout(() => {
-        const full = new SpeechSynthesisUtterance(clean);
-        full.lang = 'uk-UA';
-        full.rate = 0.8;
-        window.speechSynthesis.speak(full);
-    }, 300);
+    // Фінальне слово цілком
+    const full = new SpeechSynthesisUtterance(clean);
+    full.lang = 'uk-UA';
+    full.rate = 0.8;
+    window.speechSynthesis.speak(full);
 
     isSpeaking = false;
-    statusTxt.innerText = "Чудово! Кажи наступне.";
+    statusTxt.innerText = "Клас! Кажи ще.";
   }
 
   function handleInput() {
@@ -207,10 +166,10 @@
     input.blur();
   }
 
-  function initMic() {
+  function setupSpeech() {
     const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRec) {
-      statusTxt.innerText = "Мікрофон не підтримується";
+      statusTxt.innerText = "Голос не підтримується";
       return;
     }
 
@@ -218,21 +177,30 @@
     recognition.lang = 'uk-UA';
     recognition.interimResults = false;
 
-    recognition.onresult = (e) => {
-      const text = e.results[0][0].transcript;
-      const lastWord = text.trim().split(' ').pop();
-      statusTxt.innerText = "Почув: " + lastWord;
-      processWord(lastWord);
+    recognition.onstart = () => {
+      isRecording = true;
+      btn.classList.add('active');
+      statusTxt.innerText = "🎤 Слухаю тебе...";
     };
 
-    recognition.onend = () => {
-      document.getElementById('mic-btn').classList.remove('active');
+    recognition.onresult = (e) => {
+      const text = e.results[0][0].transcript;
+      const word = text.trim().split(' ').pop();
+      statusTxt.innerText = "Почув: " + word;
+      processWord(word);
     };
 
     recognition.onerror = (e) => {
-      console.error(e);
-      document.getElementById('mic-btn').classList.remove('active');
-      statusTxt.innerText = "Спробуй ще раз";
+      console.log('Помилка:', e.error);
+      statusTxt.innerText = "Не зрозумів, спробуй ще";
+    };
+
+    recognition.onend = () => {
+      isRecording = false;
+      btn.classList.remove('active');
+      if (statusTxt.innerText === "🎤 Слухаю тебе...") {
+        statusTxt.innerText = "Натисни на мікрофон";
+      }
     };
   }
 
@@ -240,34 +208,24 @@
     document.getElementById('overlay').style.display = 'none';
     document.getElementById('main').style.display = 'flex';
     
-    initMic();
+    setupSpeech();
     
-    // Важливо для iOS: перший звук має бути по кліку
-    const silent = new SpeechSynthesisUtterance("Привіт");
-    silent.lang = 'uk-UA';
-    silent.volume = 0;
-    window.speechSynthesis.speak(silent);
+    // Розблокування аудіо для iOS/Safari
+    window.speechSynthesis.speak(new SpeechSynthesisUtterance(""));
 
-    const btn = document.getElementById('mic-btn');
-
-    const toggleRec = (e) => {
-      e.preventDefault();
+    btn.onclick = () => {
       if (isSpeaking) return;
-      
-      try {
-        btn.classList.add('active');
-        statusTxt.innerText = "Слухаю дитину...";
-        recognition.start();
-      } catch(err) {
+      if (isRecording) {
         recognition.stop();
+      } else {
+        try {
+          recognition.start();
+        } catch (e) {
+          console.error(e);
+        }
       }
     };
-
-    // Підтримка і мишки, і тачскріна
-    btn.addEventListener('touchstart', toggleRec);
-    btn.addEventListener('mousedown', toggleRec);
   }
 </script>
-
 </body>
 </html>
