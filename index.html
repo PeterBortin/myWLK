@@ -3,203 +3,297 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>EW SYSTEM: VISUAL SCANNER</title>
+    <title>myFIX + VECTOR EW</title>
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@300;500;700&display=swap" rel="stylesheet">
     <style>
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #000; }
-        canvas { display: block; width: 100vw; height: 100vh; object-fit: cover; filter: sepia(100%) hue-rotate(90deg) saturate(300%); } /* Придаем финальный зеленый тон */
-        #ui {
-            position: absolute; bottom: 30px; left: 30px;
-            color: #fff; font-family: monospace; text-shadow: 0 0 5px #fff;
-            pointer-events: none; z-index: 10; font-size: 14px; line-height: 1.5;
+        :root {
+            --red: #ff2020;
+            --green: #00ff41;
+            --white: #ffffff;
+            --mono: 'Share Tech Mono', monospace;
+            --sans: 'Rajdhani', sans-serif;
         }
-        #glitch-overlay {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(255,255,255,0.05); pointer-events: none; display: none; z-index: 5;
+
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #000; font-family: var(--mono); }
+        
+        /* Слои */
+        #container { position: relative; width: 100vw; height: 100vh; }
+        #webglCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
+        #hudCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 5; pointer-events: none; }
+        video { display: none; } /* Видео скрыто, его читают шейдер и TF */
+
+        /* Элементы Интерфейса (из твоего кода) */
+        #scanlines {
+            position: absolute; inset: 0; pointer-events: none; z-index: 6;
+            background: repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,0,0,0.1) 3px, rgba(0,0,0,0.1) 4px);
         }
+
+        #topbar, #botbar {
+            position: absolute; left: 0; right: 0; height: 36px;
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0 18px; z-index: 15; color: rgba(255,255,255,0.7);
+            font-size: 11px; background: rgba(0,0,0,0.4);
+        }
+        #topbar { top: 0; border-bottom: 1px solid rgba(0,255,65,0.2); }
+        #botbar { bottom: 0; border-top: 1px solid rgba(0,255,65,0.2); }
+
+        .tb-label { font-family: var(--sans); font-size: 9px; color: var(--green); opacity: 0.6; margin-right: 5px; }
+
+        #terminal { position: absolute; bottom: 50px; left: 15px; width: 300px; z-index: 15; }
+        .log-entry { font-size: 10px; color: var(--green); opacity: 0.8; margin-bottom: 4px; }
+        
+        #statusPanel { position: absolute; top: 50px; right: 15px; width: 180px; z-index: 15; color: var(--green); }
+        .sp-row { display: flex; justify-content: space-between; font-size: 10px; border-bottom: 1px solid rgba(0,255,65,0.1); padding: 4px 0; }
+        
+        #startBtn {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: none; border: 1px solid var(--green); color: var(--green);
+            padding: 20px; font-family: var(--sans); cursor: pointer; z-index: 100;
+        }
+
+        #ewAlert {
+            position: absolute; top: 50px; right: 210px; color: var(--red);
+            font-family: var(--sans); font-weight: bold; opacity: 0; z-index: 15;
+        }
+        #ewAlert.show { opacity: 1; animation: blink 0.5s infinite; }
+        @keyframes blink { 50% { opacity: 0; } }
     </style>
 </head>
 <body>
-    <div id="ui">
-        SIGNAL: WEAK<br>
-        EW_INTERFERENCE: MAX<br>
-        > SCANNING GROUND_VECTORS...
+
+<div id="container">
+    <button id="startBtn">INITIALIZE NEURAL LINK</button>
+    
+    <video id="video" autoplay playsinline muted></video>
+    <canvas id="webglCanvas"></canvas> <canvas id="hudCanvas"></canvas>   <div id="scanlines"></div>
+    
+    <div id="topbar" style="display:none">
+        <div><span class="tb-label">SYS:</span>myFIX_v2.0</div>
+        <div><span class="tb-label">MODE:</span><span id="modeVal">PASSIVE</span></div>
+        <div id="clockVal">00:00:00</div>
     </div>
-    <div id="glitch-overlay"></div>
-    <canvas id="c"></canvas>
 
-    <script id="vs" type="x-shader/x-vertex">
-        attribute vec2 position;
-        varying vec2 vUv;
-        void main() {
-            vUv = position * 0.5 + 0.5;
-            vUv.y = 1.0 - vUv.y;
-            gl_Position = vec4(position, 0.0, 1.0);
-        }
-    </script>
+    <div id="terminal"></div>
 
-    <script id="fs" type="x-shader/x-fragment">
-        precision highp float;
-        varying vec2 vUv;
-        uniform sampler2D tDiffuse;
-        uniform vec2 uRes;
-        uniform float uTime;
-        uniform float uGlitch; // Уровень глитча (0.0 - 1.0)
+    <div id="statusPanel" style="display:none">
+        <div class="sp-row"><span>NET</span><span>ONLINE</span></div>
+        <div class="sp-row"><span>CORE</span><span>COCO-SSD</span></div>
+        <div class="sp-row"><span>EW_THREAT</span><span id="ewVal">LOW</span></div>
+    </div>
 
-        // Функция псевдослучайных чисел для шума
-        float random(vec2 st) {
-            return fract(sin(dot(st.xy, vec2(12.9898,78.233))) * 43758.5453123);
-        }
+    <div id="ewAlert">⚠ EW INTERFERENCE</div>
 
-        void main() {
-            vec2 uv = vUv;
-            vec2 texel = vec2(1.0 / uRes.x, 1.0 / uRes.y);
+    <div id="botbar" style="display:none">
+        <span id="coordsL">LAT 55.75°N LON 37.61°E</span>
+        <span id="coordsR">ALT 184m SPD 0kts</span>
+    </div>
+</div>
 
-            // --- 1. ЭФФЕКТ АНАЛОГОВОГО ГЛИТЧА ---
-            // Случайное вертикальное смещение строк
-            float glitchStrength = uGlitch * 0.1; // сила смещения
-            float glitchNoise = random(vec2(uTime * 10.0, vUv.y * 100.0));
-            if (glitchNoise > 0.98 - uGlitch * 0.02) {
-                uv.x += (random(vec2(uTime)) - 0.5) * glitchStrength;
-            }
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3"></script>
 
-            // --- 2. УЛУЧШЕННЫЙ ПОИСК ГРАНИЦ (perspective lines) ---
-            // Используем больше выборок для лучшего выделения контуров (эффект Кэнни)
-            float c = texture2D(tDiffuse, uv).g;
-            float n = texture2D(tDiffuse, uv + texel * vec2(0, 1)).g;
-            float s = texture2D(tDiffuse, uv + texel * vec2(0, -1)).g;
-            float e = texture2D(tDiffuse, uv + texel * vec2(1, 0)).g;
-            float w = texture2D(tDiffuse, uv + texel * vec2(-1, 0)).g;
-            
-            float edge = abs(c - n) + abs(c - s) + abs(c - e) + abs(c - w);
-            
-            // Усиливаем и сглаживаем линии
-            float line = smoothstep(0.1, 0.4, edge * 2.5);
+<script id="vs" type="x-shader/x-vertex">
+    attribute vec2 position;
+    varying vec2 vUv;
+    void main() {
+        vUv = position * 0.5 + 0.5;
+        vUv.y = 1.0 - vUv.y;
+        gl_Position = vec4(position, 0.0, 1.0);
+    }
+</script>
 
-            // --- 3. ПОМЕХИ ОТ РЭБ (EW Interference) ---
-            // А. Белый шум (рябь)
-            float noise = random(uv + uTime) * 0.2 * uGlitch;
+<script id="fs" type="x-shader/x-fragment">
+    precision highp float;
+    varying vec2 vUv;
+    uniform sampler2D tDiffuse;
+    uniform float uTime;
+    uniform float uEwIntensity;
 
-            // Б. Горизонтальные полосы искажения (Color Drifts)
-            float strips = sin(uv.y * 20.0 + uTime * 5.0) * 0.1 * uGlitch;
-            
-            // Создаем базовый ч/б векторный мир
-            vec3 vecWorld = vec3(line);
+    float random(vec2 st) {
+        return fract(sin(dot(st.xy, vec2(12.9898,78.233))) * 43758.5453123);
+    }
 
-            // Применяем помехи
-            vec3 finalColor = vecWorld + noise + vec3(strips, -strips, strips * 0.5);
-
-            // Добавляем эффект старых строк сканирования
-            float scanline = sin(vUv.y * 500.0) * 0.04;
-            finalColor -= scanline;
-
-            gl_FragColor = vec4(finalColor, 1.0);
-        }
-    </script>
-
-    <script>
-        async function init() {
-            const canvas = document.getElementById('c');
-            const gl = canvas.getContext('webgl');
-            const ui = document.getElementById('ui');
-            const glitchOverlay = document.getElementById('glitch-overlay');
-            
-            // Настройка видеопотока
-            const video = document.createElement('video');
-            video.autoplay = true;
-            video.muted = true;
-            video.playsInline = true;
-
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } },
-                    audio: false 
-                });
-                video.srcObject = stream;
-                await video.play();
-            } catch (err) {
-                ui.innerHTML = "ERROR: CAMERA ACCESS DENIED<br>CHECK HTTPS";
-                return;
-            }
-
-            // Создание шейдеров
-            function createShader(gl, type, src) {
-                const s = gl.createShader(type);
-                gl.shaderSource(s, src);
-                gl.compileShader(s);
-                if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
-                    console.error(gl.getShaderInfoLog(s));
-                }
-                return s;
-            }
-
-            const program = gl.createProgram();
-            gl.attachShader(program, createShader(gl, gl.VERTEX_SHADER, document.getElementById('vs').text));
-            gl.attachShader(program, createShader(gl, gl.FRAGMENT_SHADER, document.getElementById('fs').text));
-            gl.linkProgram(program);
-            gl.useProgram(program);
-
-            // Геометрия
-            const buffer = gl.createBuffer();
-            gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, -1,1, 1,-1, 1,1]), gl.STATIC_DRAW);
-
-            const posLoc = gl.getAttribLocation(program, "position");
-            gl.enableVertexAttribArray(posLoc);
-            gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
-
-            // Текстура
-            const texture = gl.createTexture();
-            gl.bindTexture(gl.TEXTURE_2D, texture);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-
-            const uRes = gl.getUniformLocation(program, "uRes");
-            const uTime = gl.getUniformLocation(program, "uTime");
-            const uGlitch = gl.getUniformLocation(program, "uGlitch");
-
-            let glitchLevel = 0.5; // Базовый уровень помех (РЭБ)
-
-            // Логика случайных всплесков глитча
-            function triggerGlitch() {
-                glitchLevel = 1.0;
-                ui.innerHTML = "SIGNAL: LOST<br>EW_INTERFERENCE: CRITICAL<br>> RE-SYNCING...";
-                glitchOverlay.style.display = 'block';
-                
-                setTimeout(() => {
-                    glitchLevel = 0.3 + Math.random() * 0.4; // возвращаемся к фоновому шуму
-                    ui.innerHTML = "SIGNAL: WEAK<br>EW_INTERFERENCE: MAX<br>> SCANNING GROUND_VECTORS...";
-                    glitchOverlay.style.display = 'none';
-                }, 100 + Math.random() * 300); // длительность всплеска
-                
-                // Планируем следующий всплеск
-                setTimeout(triggerGlitch, 2000 + Math.random() * 5000);
-            }
-            setTimeout(triggerGlitch, 3000); // первый запуск
-
-            function render(now) {
-                // Адаптив под экран
-                if (canvas.width !== window.innerWidth || canvas.height !== window.innerHeight) {
-                    canvas.width = window.innerWidth;
-                    canvas.height = window.innerHeight;
-                    gl.viewport(0, 0, canvas.width, canvas.height);
-                }
-
-                // Обновляем кадр камеры
-                gl.bindTexture(gl.TEXTURE_2D, texture);
-                gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, video);
-
-                gl.uniform2f(uRes, canvas.width, canvas.height);
-                gl.uniform1f(uTime, now * 0.001);
-                gl.uniform1f(uGlitch, glitchLevel);
-
-                gl.drawArrays(gl.TRIANGLES, 0, 6);
-                requestAnimationFrame(render);
-            }
-            render();
+    void main() {
+        vec2 uv = vUv;
+        
+        // Глитч от РЭБ
+        if (uEwIntensity > 0.5 && random(vec2(uTime, uv.y)) > 0.95) {
+            uv.x += (random(vec2(uTime)) - 0.5) * 0.05 * uEwIntensity;
         }
 
-        init();
-    </script>
+        vec4 tex = texture2D(tDiffuse, uv);
+        
+        // Поиск границ (Edge Detection)
+        float left = texture2D(tDiffuse, uv - vec2(0.002, 0.0)).g;
+        float right = texture2D(tDiffuse, uv + vec2(0.002, 0.0)).g;
+        float top = texture2D(tDiffuse, uv - vec2(0.0, 0.002)).g;
+        float bottom = texture2D(tDiffuse, uv + vec2(0.0, 0.002)).g;
+        float edge = abs(left - right) + abs(top - bottom);
+
+        // Цветовая схема: зеленый векторный мир
+        vec3 green = vec3(0.0, 1.0, 0.2) * edge * 2.5;
+        vec3 bg = tex.rgb * 0.1; // Тусклый задник
+        
+        // Шум РЭБ
+        float noise = random(uv + uTime) * 0.1 * uEwIntensity;
+
+        gl_FragColor = vec4(green + bg + noise, 1.0);
+    }
+</script>
+
+<script>
+    const video = document.getElementById('video');
+    const hudCanvas = document.getElementById('hudCanvas');
+    const hudCtx = hudCanvas.getContext('2d');
+    const startBtn = document.getElementById('startBtn');
+    
+    let model;
+    let predictions = [];
+    let ewLevel = 0;
+
+    // --- Инициализация Камеры и Модели ---
+    startBtn.onclick = async () => {
+        startBtn.style.display = 'none';
+        document.getElementById('topbar').style.display = 'flex';
+        document.getElementById('botbar').style.display = 'flex';
+        document.getElementById('statusPanel').style.display = 'block';
+        
+        addLog("SYSTEM BOOT...");
+        
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+            video: { facingMode: "environment" } 
+        });
+        video.srcObject = stream;
+        
+        addLog("LOADING NEURAL LINK...");
+        model = await cocoSsd.load();
+        addLog("MODEL ONLINE.");
+        
+        initWebGL();
+        detectLoop();
+        drawHUD();
+    };
+
+    function addLog(msg) {
+        const t = document.getElementById('terminal');
+        const e = document.createElement('div');
+        e.className = 'log-entry';
+        e.textContent = `> ${msg}`;
+        t.appendChild(e);
+        if (t.childNodes.length > 5) t.removeChild(t.firstChild);
+    }
+
+    // --- Цикл Распознавания (TensorFlow) ---
+    async function detectLoop() {
+        if (model && video.readyState >= 3) {
+            predictions = await model.detect(video);
+            
+            // Случайные помехи РЭБ
+            if (Math.random() > 0.98) {
+                ewLevel = 1.0;
+                document.getElementById('ewAlert').classList.add('show');
+                document.getElementById('ewVal').textContent = "CRITICAL";
+                setTimeout(() => { 
+                    ewLevel = 0; 
+                    document.getElementById('ewAlert').classList.remove('show');
+                    document.getElementById('ewVal').textContent = "LOW";
+                }, 500);
+            }
+        }
+        setTimeout(detectLoop, 100);
+    }
+
+    // --- WebGL (Фон и эффекты) ---
+    function initWebGL() {
+        const glCanvas = document.getElementById('webglCanvas');
+        const gl = glCanvas.getContext('webgl');
+        
+        function createShader(gl, type, src) {
+            const s = gl.createShader(type);
+            gl.shaderSource(s, src);
+            gl.compileShader(s);
+            return s;
+        }
+
+        const program = gl.createProgram();
+        gl.attachShader(program, createShader(gl, gl.VERTEX_SHADER, document.getElementById('vs').text));
+        gl.attachShader(program, createShader(gl, gl.FRAGMENT_SHADER, document.getElementById('fs').text));
+        gl.linkProgram(program);
+        gl.useProgram(program);
+
+        const buffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, -1,1, 1,-1, 1,1]), gl.STATIC_DRAW);
+
+        const posLoc = gl.getAttribLocation(program, "position");
+        gl.enableVertexAttribArray(posLoc);
+        gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
+
+        const texture = gl.createTexture();
+        gl.bindTexture(gl.TEXTURE_2D, texture);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+
+        const uTime = gl.getUniformLocation(program, "uTime");
+        const uEw = gl.getUniformLocation(program, "uEwIntensity");
+
+        function render(now) {
+            glCanvas.width = window.innerWidth;
+            glCanvas.height = window.innerHeight;
+            gl.viewport(0, 0, glCanvas.width, glCanvas.height);
+
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, video);
+            gl.uniform1f(uTime, now * 0.001);
+            gl.uniform1f(uEw, ewLevel);
+
+            gl.drawArrays(gl.TRIANGLES, 0, 6);
+            requestAnimationFrame(render);
+        }
+        render();
+    }
+
+    // --- Отрисовка HUD (Линии захвата) ---
+    function drawHUD() {
+        hudCanvas.width = window.innerWidth;
+        hudCanvas.height = window.innerHeight;
+        const dpr = window.devicePixelRatio;
+        
+        hudCtx.clearRect(0, 0, hudCanvas.width, hudCanvas.height);
+        
+        predictions.forEach(p => {
+            const [x, y, w, h] = p.bbox;
+            const sX = hudCanvas.width / video.videoWidth;
+            const sY = hudCanvas.height / video.videoHeight;
+            
+            const rx = x * sX, ry = y * sY, rw = w * sX, rh = h * sY;
+            
+            // Цвет в зависимости от "опасности" (человек/машина - красный)
+            const isThreat = ['person', 'car', 'truck'].includes(p.class);
+            hudCtx.strokeStyle = isThreat ? '#ff2020' : '#00ff41';
+            hudCtx.lineWidth = 2;
+            
+            // Углы рамки
+            const len = 20;
+            hudCtx.beginPath();
+            hudCtx.moveTo(rx, ry + len); hudCtx.lineTo(rx, ry); hudCtx.lineTo(rx + len, ry);
+            hudCtx.moveTo(rx + rw - len, ry); hudCtx.lineTo(rx + rw, ry); hudCtx.lineTo(rx + rw, ry + len);
+            hudCtx.moveTo(rx + rw, ry + rh - len); hudCtx.lineTo(rx + rw, ry + rh); hudCtx.lineTo(rx + rw - len, ry + rh);
+            hudCtx.moveTo(rx, ry + rh - len); hudCtx.lineTo(rx, ry + rh); hudCtx.lineTo(rx + len, ry + rh);
+            hudCtx.stroke();
+            
+            // Текст
+            hudCtx.fillStyle = hudCtx.strokeStyle;
+            hudCtx.font = "12px Share Tech Mono";
+            hudCtx.fillText(`${p.class.toUpperCase()} [${Math.round(p.score*100)}%]`, rx, ry - 10);
+        });
+
+        // Часы
+        document.getElementById('clockVal').textContent = new Date().toLocaleTimeString();
+        
+        requestAnimationFrame(drawHUD);
+    }
+</script>
+
 </body>
 </html>
