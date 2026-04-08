@@ -3,296 +3,368 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>myFIX + VECTOR EW</title>
+    <title>NEURAL_INTERFACE_v2</title>
     <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@300;500;700&display=swap" rel="stylesheet">
     <style>
         :root {
             --red: #ff2020;
-            --green: #00ff41;
+            --red-dim: rgba(255,32,32,0.15);
             --white: #ffffff;
+            --dim: rgba(255,255,255,0.08);
+            --glow: 0 0 12px rgba(255,32,32,0.6);
             --mono: 'Share Tech Mono', monospace;
             --sans: 'Rajdhani', sans-serif;
         }
 
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #000; font-family: var(--mono); }
-        
-        /* Слои */
-        #container { position: relative; width: 100vw; height: 100vh; }
-        #webglCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
-        #hudCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 5; pointer-events: none; }
-        video { display: none; } /* Видео скрыто, его читают шейдер и TF */
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-        /* Элементы Интерфейса (из твоего кода) */
-        #scanlines {
-            position: absolute; inset: 0; pointer-events: none; z-index: 6;
-            background: repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,0,0,0.1) 3px, rgba(0,0,0,0.1) 4px);
+        body {
+            margin: 0; background: #000;
+            overflow: hidden;
+            font-family: var(--mono);
+            user-select: none;
+            cursor: crosshair;
         }
 
+        #container { position: relative; width: 100vw; height: 100vh; }
+
+        video {
+            width: 100%; height: 100%;
+            object-fit: cover; display: block;
+            filter: brightness(0.45) contrast(1.3) saturate(0.1) hue-rotate(180deg);
+        }
+
+        canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+
+        /* Эффекты сканирования и виньетки */
+        #scanlines {
+            position: absolute; inset: 0; pointer-events: none; z-index: 5;
+            background: repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,0,0,0.18) 3px, rgba(0,0,0,0.18) 4px);
+            animation: scanScroll 8s linear infinite;
+        }
+        @keyframes scanScroll { from { background-position: 0 0; } to { background-position: 0 100px; } }
+
+        #vignette {
+            position: absolute; inset: 0; pointer-events: none; z-index: 4;
+            background: radial-gradient(ellipse 80% 80% at 50% 50%, transparent 40%, rgba(0,0,0,0.8) 100%);
+        }
+
+        /* Интерфейсные панели */
         #topbar, #botbar {
             position: absolute; left: 0; right: 0; height: 36px;
             display: flex; align-items: center; justify-content: space-between;
-            padding: 0 18px; z-index: 15; color: rgba(255,255,255,0.7);
-            font-size: 11px; background: rgba(0,0,0,0.4);
+            padding: 0 18px; z-index: 15; border-color: rgba(255,255,255,0.07); border-style: solid;
         }
-        #topbar { top: 0; border-bottom: 1px solid rgba(0,255,65,0.2); }
-        #botbar { bottom: 0; border-top: 1px solid rgba(0,255,65,0.2); }
+        #topbar { top: 0; background: linear-gradient(to bottom, rgba(0,0,0,0.7), transparent); border-bottom-width: 1px; }
+        #botbar { bottom: 0; background: linear-gradient(to top, rgba(0,0,0,0.7), transparent); border-top-width: 1px; }
 
-        .tb-label { font-family: var(--sans); font-size: 9px; color: var(--green); opacity: 0.6; margin-right: 5px; }
+        .tb-label { font-family: var(--sans); font-size: 10px; font-weight: 700; letter-spacing: 3px; text-transform: uppercase; color: rgba(255,255,255,0.4); margin-right: 5px;}
+        .tb-val { font-family: var(--mono); font-size: 11px; color: rgba(255,255,255,0.7); letter-spacing: 1px; margin-right: 15px;}
+        #sysId { color: #fff; font-size: 11px; letter-spacing: 4px; font-family: var(--sans); font-weight: 700; }
 
-        #terminal { position: absolute; bottom: 50px; left: 15px; width: 300px; z-index: 15; }
-        .log-entry { font-size: 10px; color: var(--green); opacity: 0.8; margin-bottom: 4px; }
+        #terminal { position: absolute; bottom: 50px; left: 15px; width: 300px; max-height: 200px; overflow: hidden; z-index: 15; }
+        .log-entry { font-size: 10px; letter-spacing: 1.5px; line-height: 1.8; text-transform: uppercase; color: rgba(255,255,255,0.5); display: flex; gap: 8px; animation: fadeIn 0.3s ease; }
+        .log-entry.threat { color: var(--red); }
+        .log-ts { color: rgba(255,255,255,0.2); }
         
-        #statusPanel { position: absolute; top: 50px; right: 15px; width: 180px; z-index: 15; color: var(--green); }
-        .sp-row { display: flex; justify-content: space-between; font-size: 10px; border-bottom: 1px solid rgba(0,255,65,0.1); padding: 4px 0; }
-        
+        #statusPanel { position: absolute; top: 50px; right: 15px; width: 200px; z-index: 15; display: none; flex-direction: column; gap: 6px; }
+        .sp-row { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 4px; }
+        .sp-key { font-family: var(--sans); font-size: 9px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: rgba(255,255,255,0.3); }
+        .sp-val { font-family: var(--mono); font-size: 10px; color: rgba(255,255,255,0.65); }
+        .sp-val.active { color: var(--red); text-shadow: 0 0 8px var(--red); }
+
+        .bar-wrap { width: 80px; height: 3px; background: rgba(255,255,255,0.1); }
+        .bar-fill { height: 100%; background: rgba(255,255,255,0.5); transition: width 0.3s ease; }
+        .bar-fill.danger { background: var(--red); box-shadow: 0 0 6px var(--red); }
+
+        #threatBox { position: absolute; top: 50%; right: 15px; transform: translateY(-50%); z-index: 15; width: 180px; opacity: 0; transition: opacity 0.4s; }
+        #threatBox.show { opacity: 1; }
+        .tb-header { font-family: var(--sans); font-size: 9px; font-weight: 700; letter-spacing: 3px; color: var(--red); border-bottom: 1px solid rgba(255,32,32,0.3); padding-bottom: 6px; margin-bottom: 8px; }
+        .tbi { font-size: 10px; color: rgba(255,255,255,0.65); line-height: 2; }
+        .tbi-key { color: rgba(255,255,255,0.3); font-size: 9px; }
+
+        #ewAlert { position: absolute; top: 50px; right: 220px; font-family: var(--sans); font-size: 9px; font-weight: 700; letter-spacing: 3px; color: var(--red); opacity: 0; z-index: 15; }
+        #ewAlert.show { opacity: 1; animation: blink 0.5s infinite; }
+
         #startBtn {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            background: none; border: 1px solid var(--green); color: var(--green);
-            padding: 20px; font-family: var(--sans); cursor: pointer; z-index: 100;
+            background: none; border: none; color: #fff; cursor: pointer; z-index: 20;
         }
-
-        #ewAlert {
-            position: absolute; top: 50px; right: 210px; color: var(--red);
-            font-family: var(--sans); font-weight: bold; opacity: 0; z-index: 15;
-        }
-        #ewAlert.show { opacity: 1; animation: blink 0.5s infinite; }
+        .btn-ring { width: 80px; height: 80px; position: relative; display: flex; align-items: center; justify-content: center; margin-bottom: 10px; }
+        .ring-svg { position: absolute; animation: spinRing 4s linear infinite; }
+        @keyframes spinRing { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         @keyframes blink { 50% { opacity: 0; } }
     </style>
 </head>
 <body>
 
 <div id="container">
-    <button id="startBtn">INITIALIZE NEURAL LINK</button>
-    
     <video id="video" autoplay playsinline muted></video>
-    <canvas id="webglCanvas"></canvas> <canvas id="hudCanvas"></canvas>   <div id="scanlines"></div>
+    <canvas id="hudCanvas"></canvas>
     
-    <div id="topbar" style="display:none">
-        <div><span class="tb-label">SYS:</span>myFIX_v2.0</div>
-        <div><span class="tb-label">MODE:</span><span id="modeVal">PASSIVE</span></div>
-        <div id="clockVal">00:00:00</div>
+    <div id="vignette"></div>
+    <div id="scanlines"></div>
+
+    <button id="startBtn">
+        <div class="btn-ring">
+            <svg class="ring-svg" width="80" height="80" viewBox="0 0 80 80">
+                <circle cx="40" cy="40" r="36" stroke="white" stroke-width="1" stroke-dasharray="8 4" opacity="0.3"/>
+            </svg>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
+                <circle cx="12" cy="12" r="2"/>
+                <path d="M12 4v4M12 16v4M4 12h4M16 12h4" stroke="white" stroke-width="1.5"/>
+            </svg>
+        </div>
+        <div style="font-family: var(--sans); font-size: 11px; letter-spacing: 5px; text-transform: uppercase;">init_system</div>
+    </button>
+
+    <div id="topbar">
+        <div><span class="tb-val" id="sysId">NEURAL_LINK</span></div>
+        <div>
+            <span class="tb-label">mode</span><span class="tb-val" id="modeVal">SLEEP</span>
+            <span class="tb-label">time</span><span class="tb-val" id="clockVal">00:00:00</span>
+        </div>
     </div>
 
-    <div id="terminal"></div>
-
-    <div id="statusPanel" style="display:none">
-        <div class="sp-row"><span>NET</span><span>ONLINE</span></div>
-        <div class="sp-row"><span>CORE</span><span>COCO-SSD</span></div>
-        <div class="sp-row"><span>EW_THREAT</span><span id="ewVal">LOW</span></div>
+    <div id="statusPanel">
+        <div class="sp-row"><span class="sp-key">net</span><span class="sp-val active">ONLINE</span></div>
+        <div class="sp-row"><span class="sp-key">obj</span><span class="sp-val" id="objCount">0</span></div>
+        <div class="sp-row"><span class="sp-key">lock</span><span class="sp-val" id="lockStat">--</span></div>
+        <div class="sp-row"><span class="sp-key">conf</span><div class="bar-wrap"><div class="bar-fill" id="confBar" style="width:0%"></div></div></div>
+        <div class="sp-row"><span class="sp-key">reb</span><div class="bar-wrap"><div class="bar-fill" id="ewBar" style="width:0%"></div></div></div>
     </div>
 
-    <div id="ewAlert">⚠ EW INTERFERENCE</div>
+    <div id="ewAlert">⚠ REB_INTERFERENCE</div>
+
+    <div id="threatBox">
+        <div class="tb-header">// target_data</div>
+        <div id="threatLines"></div>
+    </div>
+
+    <div id="terminal"><span id="cursor"></span></div>
 
     <div id="botbar" style="display:none">
-        <span id="coordsL">LAT 55.75°N LON 37.61°E</span>
-        <span id="coordsR">ALT 184m SPD 0kts</span>
+        <span class="tb-val" id="coordsL" style="font-size:10px; opacity:0.5">LAT 0.000 LON 0.000</span>
+        <span class="tb-val" id="coordsR" style="font-size:10px; opacity:0.5">ALT 0m SPD 0kts</span>
     </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0"></script>
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3"></script>
 
-<script id="vs" type="x-shader/x-vertex">
-    attribute vec2 position;
-    varying vec2 vUv;
-    void main() {
-        vUv = position * 0.5 + 0.5;
-        vUv.y = 1.0 - vUv.y;
-        gl_Position = vec4(position, 0.0, 1.0);
-    }
-</script>
-
-<script id="fs" type="x-shader/x-fragment">
-    precision highp float;
-    varying vec2 vUv;
-    uniform sampler2D tDiffuse;
-    uniform float uTime;
-    uniform float uEwIntensity;
-
-    float random(vec2 st) {
-        return fract(sin(dot(st.xy, vec2(12.9898,78.233))) * 43758.5453123);
-    }
-
-    void main() {
-        vec2 uv = vUv;
-        
-        // Глитч от РЭБ
-        if (uEwIntensity > 0.5 && random(vec2(uTime, uv.y)) > 0.95) {
-            uv.x += (random(vec2(uTime)) - 0.5) * 0.05 * uEwIntensity;
-        }
-
-        vec4 tex = texture2D(tDiffuse, uv);
-        
-        // Поиск границ (Edge Detection)
-        float left = texture2D(tDiffuse, uv - vec2(0.002, 0.0)).g;
-        float right = texture2D(tDiffuse, uv + vec2(0.002, 0.0)).g;
-        float top = texture2D(tDiffuse, uv - vec2(0.0, 0.002)).g;
-        float bottom = texture2D(tDiffuse, uv + vec2(0.0, 0.002)).g;
-        float edge = abs(left - right) + abs(top - bottom);
-
-        // Цветовая схема: зеленый векторный мир
-        vec3 green = vec3(0.0, 1.0, 0.2) * edge * 2.5;
-        vec3 bg = tex.rgb * 0.1; // Тусклый задник
-        
-        // Шум РЭБ
-        float noise = random(uv + uTime) * 0.1 * uEwIntensity;
-
-        gl_FragColor = vec4(green + bg + noise, 1.0);
-    }
-</script>
-
 <script>
-    const video = document.getElementById('video');
-    const hudCanvas = document.getElementById('hudCanvas');
-    const hudCtx = hudCanvas.getContext('2d');
-    const startBtn = document.getElementById('startBtn');
-    
-    let model;
-    let predictions = [];
-    let ewLevel = 0;
-
-    // --- Инициализация Камеры и Модели ---
-    startBtn.onclick = async () => {
-        startBtn.style.display = 'none';
-        document.getElementById('topbar').style.display = 'flex';
-        document.getElementById('botbar').style.display = 'flex';
-        document.getElementById('statusPanel').style.display = 'block';
-        
-        addLog("SYSTEM BOOT...");
-        
-        const stream = await navigator.mediaDevices.getUserMedia({ 
-            video: { facingMode: "environment" } 
-        });
-        video.srcObject = stream;
-        
-        addLog("LOADING NEURAL LINK...");
-        model = await cocoSsd.load();
-        addLog("MODEL ONLINE.");
-        
-        initWebGL();
-        detectLoop();
-        drawHUD();
+    const THREAT = {
+        HIGH: ['person','car','truck','bus','motorcycle','airplane','boat'],
+        MED: ['bicycle','dog','cat','bird']
     };
 
-    function addLog(msg) {
-        const t = document.getElementById('terminal');
-        const e = document.createElement('div');
-        e.className = 'log-entry';
-        e.textContent = `> ${msg}`;
-        t.appendChild(e);
-        if (t.childNodes.length > 5) t.removeChild(t.firstChild);
-    }
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('hudCanvas');
+    const ctx = canvas.getContext('2d');
+    const startBtn = document.getElementById('startBtn');
+    
+    let model, allPredictions = [], primaryTarget = null;
+    let currentPos = { x: window.innerWidth/2, y: window.innerHeight/2 };
+    let targetPos = { x: window.innerWidth/2, y: window.innerHeight/2, active: false };
+    let isLocked = false, lockFactor = 0, pulseTime = 0, scanAngle = 0;
+    let ewIntensity = 0, ewTimer = 0, glitchActive = 0, infoLines = [];
 
-    // --- Цикл Распознавания (TensorFlow) ---
+    // Инициализация
+    startBtn.onclick = async () => {
+        startBtn.style.display = 'none';
+        document.getElementById('statusPanel').style.display = 'flex';
+        document.getElementById('botbar').style.display = 'flex';
+        
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+            video.srcObject = stream;
+            model = await cocoSsd.load();
+            document.getElementById('modeVal').textContent = 'ACTIVE';
+            addLog("SYSTEM_BOOT_COMPLETE");
+            addLog("NEURAL_MODEL_LOADED", "info");
+            
+            resize();
+            detectLoop();
+            draw();
+        } catch (e) { addLog("INIT_ERROR: NO_SENSOR", "threat"); }
+    };
+
+    function resize() {
+        canvas.width = window.innerWidth * window.devicePixelRatio;
+        canvas.height = window.innerHeight * window.devicePixelRatio;
+    }
+    window.onresize = resize;
+
     async function detectLoop() {
         if (model && video.readyState >= 3) {
-            predictions = await model.detect(video);
-            
-            // Случайные помехи РЭБ
-            if (Math.random() > 0.98) {
-                ewLevel = 1.0;
-                document.getElementById('ewAlert').classList.add('show');
-                document.getElementById('ewVal').textContent = "CRITICAL";
-                setTimeout(() => { 
-                    ewLevel = 0; 
-                    document.getElementById('ewAlert').classList.remove('show');
-                    document.getElementById('ewVal').textContent = "LOW";
-                }, 500);
-            }
+            allPredictions = await model.detect(video);
+            primaryTarget = allPredictions.length > 0 ? allPredictions[0] : null;
         }
+        
+        if (primaryTarget) {
+            const [x, y, w, h] = primaryTarget.bbox;
+            const sX = window.innerWidth / video.videoWidth;
+            const sY = window.innerHeight / video.videoHeight;
+            targetPos.x = (x + w/2) * sX;
+            targetPos.y = (y + h/2) * sY;
+            targetPos.active = true;
+
+            const dist = Math.hypot(currentPos.x - targetPos.x, currentPos.y - targetPos.y);
+            const wasLocked = isLocked;
+            isLocked = dist < 120;
+
+            if (isLocked && !wasLocked) {
+                addLog(`LOCK: ${primaryTarget.class.toUpperCase()}`, "threat");
+                buildThreatInfo(primaryTarget);
+                glitchActive = 10;
+            }
+        } else {
+            targetPos.active = false;
+            isLocked = false;
+        }
+        
+        document.getElementById('objCount').textContent = allPredictions.length;
+        document.getElementById('lockStat').textContent = isLocked ? primaryTarget.class : '--';
+        document.getElementById('lockStat').className = isLocked ? 'sp-val active' : 'sp-val';
+        document.getElementById('threatBox').classList.toggle('show', isLocked);
+        
         setTimeout(detectLoop, 100);
     }
 
-    // --- WebGL (Фон и эффекты) ---
-    function initWebGL() {
-        const glCanvas = document.getElementById('webglCanvas');
-        const gl = glCanvas.getContext('webgl');
-        
-        function createShader(gl, type, src) {
-            const s = gl.createShader(type);
-            gl.shaderSource(s, src);
-            gl.compileShader(s);
-            return s;
-        }
-
-        const program = gl.createProgram();
-        gl.attachShader(program, createShader(gl, gl.VERTEX_SHADER, document.getElementById('vs').text));
-        gl.attachShader(program, createShader(gl, gl.FRAGMENT_SHADER, document.getElementById('fs').text));
-        gl.linkProgram(program);
-        gl.useProgram(program);
-
-        const buffer = gl.createBuffer();
-        gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, -1,1, 1,-1, 1,1]), gl.STATIC_DRAW);
-
-        const posLoc = gl.getAttribLocation(program, "position");
-        gl.enableVertexAttribArray(posLoc);
-        gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
-
-        const texture = gl.createTexture();
-        gl.bindTexture(gl.TEXTURE_2D, texture);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-
-        const uTime = gl.getUniformLocation(program, "uTime");
-        const uEw = gl.getUniformLocation(program, "uEwIntensity");
-
-        function render(now) {
-            glCanvas.width = window.innerWidth;
-            glCanvas.height = window.innerHeight;
-            gl.viewport(0, 0, glCanvas.width, glCanvas.height);
-
-            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, video);
-            gl.uniform1f(uTime, now * 0.001);
-            gl.uniform1f(uEw, ewLevel);
-
-            gl.drawArrays(gl.TRIANGLES, 0, 6);
-            requestAnimationFrame(render);
-        }
-        render();
+    function buildThreatInfo(p) {
+        const lines = [
+            { k: 'CLS', v: p.class.toUpperCase() },
+            { k: 'TRT', v: THREAT.HIGH.includes(p.class) ? 'HIGH' : 'LOW' },
+            { k: 'ACC', v: Math.round(p.score*100)+'%' },
+            { k: 'SIG', v: '0x' + Math.random().toString(16).slice(2,6) }
+        ];
+        const container = document.getElementById('threatLines');
+        container.innerHTML = lines.map(l => `<div class="tbi"><span class="tbi-key">${l.k}:</span> ${l.v}</div>`).join('');
     }
 
-    // --- Отрисовка HUD (Линии захвата) ---
-    function drawHUD() {
-        hudCanvas.width = window.innerWidth;
-        hudCanvas.height = window.innerHeight;
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
         const dpr = window.devicePixelRatio;
-        
-        hudCtx.clearRect(0, 0, hudCanvas.width, hudCanvas.height);
-        
-        predictions.forEach(p => {
-            const [x, y, w, h] = p.bbox;
-            const sX = hudCanvas.width / video.videoWidth;
-            const sY = hudCanvas.height / video.videoHeight;
-            
-            const rx = x * sX, ry = y * sY, rw = w * sX, rh = h * sY;
-            
-            // Цвет в зависимости от "опасности" (человек/машина - красный)
-            const isThreat = ['person', 'car', 'truck'].includes(p.class);
-            hudCtx.strokeStyle = isThreat ? '#ff2020' : '#00ff41';
-            hudCtx.lineWidth = 2;
-            
-            // Углы рамки
-            const len = 20;
-            hudCtx.beginPath();
-            hudCtx.moveTo(rx, ry + len); hudCtx.lineTo(rx, ry); hudCtx.lineTo(rx + len, ry);
-            hudCtx.moveTo(rx + rw - len, ry); hudCtx.lineTo(rx + rw, ry); hudCtx.lineTo(rx + rw, ry + len);
-            hudCtx.moveTo(rx + rw, ry + rh - len); hudCtx.lineTo(rx + rw, ry + rh); hudCtx.lineTo(rx + rw - len, ry + rh);
-            hudCtx.moveTo(rx, ry + rh - len); hudCtx.lineTo(rx, ry + rh); hudCtx.lineTo(rx + len, ry + rh);
-            hudCtx.stroke();
-            
-            // Текст
-            hudCtx.fillStyle = hudCtx.strokeStyle;
-            hudCtx.font = "12px Share Tech Mono";
-            hudCtx.fillText(`${p.class.toUpperCase()} [${Math.round(p.score*100)}%]`, rx, ry - 10);
-        });
+        const W = canvas.width, H = canvas.height;
 
-        // Часы
-        document.getElementById('clockVal').textContent = new Date().toLocaleTimeString();
+        // Сглаживание движения
+        const dx = targetPos.active ? targetPos.x : window.innerWidth/2;
+        const dy = targetPos.active ? targetPos.y : window.innerHeight/2;
+        currentPos.x += (dx - currentPos.x) * 0.15;
+        currentPos.y += (dy - currentPos.y) * 0.15;
+
+        lockFactor = isLocked ? Math.min(1, lockFactor + 0.1) : Math.max(0, lockFactor - 0.05);
+        pulseTime += 0.05;
+        scanAngle += 0.02;
+
+        // Эффект РЭБ (EW)
+        ewTimer++;
+        if(ewTimer % 300 === 0) ewIntensity = 15;
+        ewIntensity = Math.max(0, ewIntensity - 0.1);
+        document.getElementById('ewAlert').classList.toggle('show', ewIntensity > 5);
+        document.getElementById('ewBar').style.width = (ewIntensity/15*100) + '%';
+
+        ctx.save();
+        if (glitchActive > 0) { ctx.translate((Math.random()-0.5)*10, 0); glitchActive--; }
+        if (ewIntensity > 8) ctx.translate(0, (Math.random()-0.5)*5);
+
+        const cx = currentPos.x * dpr, cy = currentPos.y * dpr;
+        const color = isLocked ? `rgba(255, 32, 32, ${0.6 + 0.4*lockFactor})` : `rgba(255, 255, 255, 0.4)`;
+
+        // Отрисовка всех целей
+        allPredictions.forEach((p, i) => {
+            if (i === 0 && isLocked) return;
+            const [bx, by, bw, bh] = p.bbox;
+            const sX = window.innerWidth / video.videoWidth;
+            const sY = window.innerHeight / video.videoHeight;
+            ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+            ctx.setLineDash([5, 5]);
+            ctx.strokeRect(bx*sX*dpr, by*sY*dpr, bw*sX*dpr, bh*sY*dpr);
+        });
+        ctx.setLineDash([]);
+
+        // ПРИЦЕЛ (RETICLE)
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2 * dpr;
+        ctx.shadowBlur = 10 * lockFactor;
+        ctx.shadowColor = color;
+
+        // Внешние уголки
+        const s = (20 + 10 * (1-lockFactor)) * dpr;
+        const gap = (30 + 20 * (1-lockFactor)) * dpr;
         
-        requestAnimationFrame(drawHUD);
+        for(let i=0; i<4; i++) {
+            ctx.save();
+            ctx.translate(cx, cy);
+            ctx.rotate(i * Math.PI/2);
+            ctx.beginPath();
+            ctx.moveTo(gap, gap-s); ctx.lineTo(gap, gap); ctx.lineTo(gap-s, gap);
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        // Центральное перекрестие
+        ctx.beginPath();
+        const cS = 8 * dpr;
+        ctx.moveTo(cx - cS, cy); ctx.lineTo(cx + cS, cy);
+        ctx.moveTo(cx, cy - cS); ctx.lineTo(cx, cy + cS);
+        ctx.stroke();
+
+        // Круги и анимация
+        ctx.lineWidth = 1 * dpr;
+        ctx.beginPath();
+        ctx.arc(cx, cy, 50 * dpr, 0, Math.PI * 2);
+        ctx.stroke();
+        
+        if (isLocked) {
+            ctx.save();
+            ctx.translate(cx, cy);
+            ctx.rotate(pulseTime);
+            ctx.setLineDash([20, 100]);
+            ctx.beginPath();
+            ctx.arc(0, 0, 60 * dpr, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        // Текстовый блок у прицела
+        if (isLocked) {
+            ctx.fillStyle = color;
+            ctx.font = `${10*dpr}px var(--mono)`;
+            ctx.fillText(`TRK_ID: ${primaryTarget.class.toUpperCase()}`, cx + 70*dpr, cy - 40*dpr);
+            ctx.fillText(`DIST: ${(Math.random()*1000).toFixed(1)}m`, cx + 70*dpr, cy - 25*dpr);
+        }
+
+        // Шум РЭБ
+        if (ewIntensity > 5) {
+            for(let i=0; i<20; i++) {
+                ctx.fillStyle = `rgba(255,255,255,${Math.random()*0.2})`;
+                ctx.fillRect(Math.random()*W, Math.random()*H, Math.random()*100, 1);
+            }
+        }
+
+        ctx.restore();
+        requestAnimationFrame(draw);
     }
+
+    function addLog(msg, type="info") {
+        const log = document.getElementById('terminal');
+        const entry = document.createElement('div');
+        entry.className = `log-entry ${type}`;
+        entry.innerHTML = `<span class="log-ts">${new Date().toLocaleTimeString()}</span> › ${msg}`;
+        log.insertBefore(entry, log.firstChild);
+        if(log.children.length > 10) log.lastChild.remove();
+    }
+
+    setInterval(() => {
+        document.getElementById('clockVal').textContent = new Date().toLocaleTimeString();
+        if(targetPos.active) {
+            const lat = (Math.random() * 0.01 + 50.45).toFixed(4);
+            const lon = (Math.random() * 0.01 + 30.52).toFixed(4);
+            document.getElementById('coordsL').textContent = `LAT ${lat} LON ${lon}`;
+            document.getElementById('coordsR').textContent = `ALT ${Math.floor(Math.random()*10+100)}m SPD ${Math.floor(Math.random()*5+15)}kts`;
+        }
+    }, 1000);
 </script>
 
 </body>
