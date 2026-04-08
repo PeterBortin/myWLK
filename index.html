@@ -1,231 +1,149 @@
 <!DOCTYPE html>
-<html lang="uk">
+<html lang="ru">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0">
-  <title>Читайлик — Навчання по складах</title>
-  <style>
-    :root { 
-      --p: #FF6B6B; 
-      --s: #4ECDC4; 
-      --bg: #F0F4F8; 
-      --text: #2D3436;
-    }
-    
-    body { 
-      margin: 0; background: var(--bg); font-family: 'Segoe UI', Roboto, sans-serif; 
-      height: 100vh; display: flex; flex-direction: column; overflow: hidden;
-      -webkit-user-select: none; user-select: none; touch-action: manipulation;
-    }
-
-    #overlay { 
-      position: fixed; inset: 0; background: var(--s); z-index: 100; 
-      display: flex; flex-direction: column; justify-content: center; align-items: center; color: white;
-    }
-    .start-btn {
-      padding: 25px 60px; font-size: 28px; border-radius: 50px; border: none; 
-      background: white; color: var(--s); font-weight: bold; cursor: pointer;
-      box-shadow: 0 10px 0 #3dbbb3;
-    }
-
-    #main { display: none; flex: 1; flex-direction: column; padding: 20px; max-width: 600px; margin: 0 auto; width: 100%; box-sizing: border-box; }
-    
-    .word-area {
-      flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center;
-      background: white; border-radius: 40px; box-shadow: 0 15px 35px rgba(0,0,0,0.1); 
-      margin-bottom: 25px; border: 4px solid #E1E8ED; padding: 20px; text-align: center;
-    }
-    #big-word { font-size: clamp(40px, 12vw, 70px); font-weight: 900; color: var(--text); letter-spacing: 2px; }
-    #syl-view { font-size: 30px; color: #A0AEC0; margin-top: 20px; min-height: 40px; }
-    .active-syl { color: var(--p); transform: scale(1.2); display: inline-block; font-weight: bold; }
-
-    .mic-wrap { display: flex; flex-direction: column; align-items: center; gap: 15px; }
-    #mic-btn {
-      width: 110px; height: 110px; border-radius: 50%; background: var(--p); 
-      border: 6px solid white; box-shadow: 0 8px 20px rgba(255,107,107,0.4);
-      display: flex; justify-content: center; align-items: center; cursor: pointer;
-      transition: transform 0.2s; -webkit-tap-highlight-color: transparent;
-    }
-    #mic-btn.active { 
-      background: #ff4757; animation: pulse 1.5s infinite; transform: scale(1.05);
-    }
-    @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(255,107,107, 0.7); } 70% { box-shadow: 0 0 0 25px rgba(255,107,107, 0); } 100% { box-shadow: 0 0 0 0 rgba(255,107,107, 0); } }
-
-    #status { font-size: 18px; color: #718096; font-weight: 600; text-align: center; margin-bottom: 10px; min-height: 24px; }
-
-    .input-row { display: flex; gap: 10px; width: 100%; }
-    input { 
-      flex: 1; padding: 15px; border-radius: 20px; border: 2px solid #CBD5E0; 
-      font-size: 16px; outline: none;
-    }
-    .go-btn { padding: 0 20px; border-radius: 20px; border: none; background: var(--s); color: white; font-weight: bold; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>RETRO CAMERA SCANNER</title>
+    <style>
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #000; }
+        canvas { display: block; width: 100vw; height: 100vh; object-fit: cover; }
+        #ui {
+            position: absolute; bottom: 20px; left: 20px;
+            color: #0f0; font-family: monospace; text-shadow: 0 0 5px #0f0;
+            pointer-events: none; z-index: 10;
+        }
+    </style>
 </head>
 <body>
+    <div id="ui">SYSTEM: SCANNING WORLD...<br>EDGE_DETECTION: ACTIVE</div>
+    <canvas id="c"></canvas>
 
-<div id="overlay">
-  <h1 style="text-align: center; padding: 0 20px;">Готовий вчитися читати? 👋</h1>
-  <button class="start-btn" onclick="init()">ТАК!</button>
-</div>
-
-<div id="main">
-  <div id="status">Натисни кнопку і скажи слово</div>
-  <div class="word-area">
-    <div id="big-word">ПРИВІТ</div>
-    <div id="syl-view"></div>
-  </div>
-
-  <div class="mic-wrap">
-    <div id="mic-btn">
-      <svg width="45" height="45" viewBox="0 0 24 24" fill="white"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/><path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>
-    </div>
-    <div class="input-row">
-      <input type="text" id="manual" placeholder="Напиши слово...">
-      <button class="go-btn" onclick="handleInput()">ОК</button>
-    </div>
-  </div>
-</div>
-
-<script>
-  let recognition;
-  let isSpeaking = false;
-  let isRecording = false;
-  const statusTxt = document.getElementById('status');
-  const btn = document.getElementById('mic-btn');
-
-  // Логіка поділу на склади (Українська мова)
-  function getSyllables(word) {
-    const vowels = "аоуиіеяюєї";
-    const letters = word.toLowerCase().split('');
-    let res = [];
-    let cur = "";
-
-    for (let i = 0; i < letters.length; i++) {
-      cur += letters[i];
-      if (vowels.includes(letters[i])) {
-        let hasMoreVowels = false;
-        for (let j = i + 1; j < letters.length; j++) {
-          if (vowels.includes(letters[j])) { hasMoreVowels = true; break; }
+    <script id="vs" type="x-shader/x-vertex">
+        attribute vec2 position;
+        varying vec2 vUv;
+        void main() {
+            vUv = position * 0.5 + 0.5;
+            vUv.y = 1.0 - vUv.y; // Зеркалим по вертикали для корректного отображения
+            gl_Position = vec4(position, 0.0, 1.0);
         }
-        if (hasMoreVowels) {
-          // Якщо далі одна приголосна і голосна — склад закриваємо зараз
-          if (i + 2 < letters.length && !vowels.includes(letters[i+1]) && vowels.includes(letters[i+2])) {
-            res.push(cur); cur = "";
-          } 
-          // Якщо дві приголосні — одну беремо в цей склад
-          else if (i + 2 < letters.length && !vowels.includes(letters[i+1]) && !vowels.includes(letters[i+2])) {
-            cur += letters[i+1]; i++;
-            res.push(cur); cur = "";
-          }
+    </script>
+
+    <script id="fs" type="x-shader/x-fragment">
+        precision highp float;
+        varying vec2 vUv;
+        uniform sampler2D tDiffuse;
+        uniform vec2 uRes;
+        uniform float uTime;
+
+        void main() {
+            vec2 texel = vec2(1.0 / uRes.x, 1.0 / uRes.y);
+            
+            // Алгоритм Собеля (поиск границ)
+            float tx0y0 = texture2D(tDiffuse, vUv + texel * vec2(-1, -1)).g;
+            float tx1y0 = texture2D(tDiffuse, vUv + texel * vec2( 0, -1)).g;
+            float tx2y0 = texture2D(tDiffuse, vUv + texel * vec2( 1, -1)).g;
+            float tx0y1 = texture2D(tDiffuse, vUv + texel * vec2(-1,  0)).g;
+            float tx2y1 = texture2D(tDiffuse, vUv + texel * vec2( 1,  0)).g;
+            float tx0y2 = texture2D(tDiffuse, vUv + texel * vec2(-1,  1)).g;
+            float tx1y2 = texture2D(tDiffuse, vUv + texel * vec2( 0,  1)).g;
+            float tx2y2 = texture2D(tDiffuse, vUv + texel * vec2( 1,  1)).g;
+
+            float Gx = tx0y0 + 2.0 * tx0y1 + tx0y2 - (tx2y0 + 2.0 * tx2y1 + tx2y2);
+            float Gy = tx0y0 + 2.0 * tx1y0 + tx2y0 - (tx0y2 + 2.0 * tx1y2 + tx2y2);
+            float edge = sqrt(Gx * Gx + Gy * Gy);
+
+            // Стилизация под референс
+            vec3 neonColor = vec3(0.0, 1.0, 0.3);
+            
+            // Порог чувствительности (чтобы не было шума)
+            float threshold = 0.15;
+            float line = smoothstep(threshold, threshold + 0.1, edge);
+
+            // Эффект строк сканирования (как на гифке 1)
+            float scanline = sin(vUv.y * 400.0 + uTime * 10.0) * 0.1 + 0.9;
+            
+            // Добавляем немного оригинального изображения (темного)
+            vec3 scene = texture2D(tDiffuse, vUv).rgb * 0.1;
+
+            gl_FragColor = vec4((neonColor * line * scanline) + (scene * line), 1.0);
         }
-      }
-    }
-    if (cur) res.push(cur);
-    return res;
-  }
+    </script>
 
-  async function processWord(word) {
-    if (!word || isSpeaking) return;
-    isSpeaking = true;
-    
-    const clean = word.toLowerCase().replace(/[^а-яіїєґ]/gi, '');
-    if (!clean) { isSpeaking = false; return; }
+    <script>
+        async function init() {
+            const canvas = document.getElementById('c');
+            const gl = canvas.getContext('webgl');
+            
+            // Настройка видеопотока
+            const video = document.createElement('video');
+            video.autoplay = true;
+            video.muted = true;
+            video.playsInline = true;
 
-    document.getElementById('big-word').innerText = clean.toUpperCase();
-    const syls = getSyllables(clean);
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: "environment" }, // Задняя камера
+                    audio: false 
+                });
+                video.srcObject = stream;
+                await video.play();
+            } catch (err) {
+                document.getElementById('ui').innerHTML = "ERROR: CAMERA ACCESS DENIED";
+                return;
+            }
 
-    for (let i = 0; i < syls.length; i++) {
-      document.getElementById('syl-view').innerHTML = syls.map((s, idx) => 
-        `<span class="${idx === i ? 'active-syl' : ''}">${s}</span>`
-      ).join(' · ');
+            // Создание шейдеров
+            function createShader(gl, type, src) {
+                const s = gl.createShader(type);
+                gl.shaderSource(s, src);
+                gl.compileShader(s);
+                return s;
+            }
 
-      await new Promise(resolve => {
-        const u = new SpeechSynthesisUtterance(syls[i]);
-        u.lang = 'uk-UA';
-        u.rate = 0.5;
-        u.onend = resolve;
-        u.onerror = resolve;
-        window.speechSynthesis.speak(u);
-      });
-    }
-    
-    // Фінальне слово цілком
-    const full = new SpeechSynthesisUtterance(clean);
-    full.lang = 'uk-UA';
-    full.rate = 0.8;
-    window.speechSynthesis.speak(full);
+            const program = gl.createProgram();
+            gl.attachShader(program, createShader(gl, gl.VERTEX_SHADER, document.getElementById('vs').text));
+            gl.attachShader(program, createShader(gl, gl.FRAGMENT_SHADER, document.getElementById('fs').text));
+            gl.linkProgram(program);
+            gl.useProgram(program);
 
-    isSpeaking = false;
-    statusTxt.innerText = "Клас! Кажи ще.";
-  }
+            // Геометрия (Fullscreen Quad)
+            const buffer = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, -1,1, 1,-1, 1,1]), gl.STATIC_DRAW);
 
-  function handleInput() {
-    const input = document.getElementById('manual');
-    processWord(input.value);
-    input.value = "";
-    input.blur();
-  }
+            const posLoc = gl.getAttribLocation(program, "position");
+            gl.enableVertexAttribArray(posLoc);
+            gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
 
-  function setupSpeech() {
-    const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRec) {
-      statusTxt.innerText = "Голос не підтримується";
-      return;
-    }
+            // Создание текстуры из видео
+            const texture = gl.createTexture();
+            gl.bindTexture(gl.TEXTURE_2D, texture);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
 
-    recognition = new SpeechRec();
-    recognition.lang = 'uk-UA';
-    recognition.interimResults = false;
+            const uRes = gl.getUniformLocation(program, "uRes");
+            const uTime = gl.getUniformLocation(program, "uTime");
 
-    recognition.onstart = () => {
-      isRecording = true;
-      btn.classList.add('active');
-      statusTxt.innerText = "🎤 Слухаю тебе...";
-    };
+            function render(now) {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+                gl.viewport(0, 0, canvas.width, canvas.height);
 
-    recognition.onresult = (e) => {
-      const text = e.results[0][0].transcript;
-      const word = text.trim().split(' ').pop();
-      statusTxt.innerText = "Почув: " + word;
-      processWord(word);
-    };
+                // Обновляем текстуру кадра камеры
+                gl.bindTexture(gl.TEXTURE_2D, texture);
+                gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, video);
 
-    recognition.onerror = (e) => {
-      console.log('Помилка:', e.error);
-      statusTxt.innerText = "Не зрозумів, спробуй ще";
-    };
+                gl.uniform2f(uRes, canvas.width, canvas.height);
+                gl.uniform1f(uTime, now * 0.001);
 
-    recognition.onend = () => {
-      isRecording = false;
-      btn.classList.remove('active');
-      if (statusTxt.innerText === "🎤 Слухаю тебе...") {
-        statusTxt.innerText = "Натисни на мікрофон";
-      }
-    };
-  }
-
-  function init() {
-    document.getElementById('overlay').style.display = 'none';
-    document.getElementById('main').style.display = 'flex';
-    
-    setupSpeech();
-    
-    // Розблокування аудіо для iOS/Safari
-    window.speechSynthesis.speak(new SpeechSynthesisUtterance(""));
-
-    btn.onclick = () => {
-      if (isSpeaking) return;
-      if (isRecording) {
-        recognition.stop();
-      } else {
-        try {
-          recognition.start();
-        } catch (e) {
-          console.error(e);
+                gl.drawArrays(gl.TRIANGLES, 0, 6);
+                requestAnimationFrame(render);
+            }
+            render();
         }
-      }
-    };
-  }
-</script>
+
+        init();
+    </script>
 </body>
 </html>
