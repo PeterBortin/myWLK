@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>myFIX + VECTOR EW</title>
+    <title>myFIX + VECTOR EW | ADVANCED TARGETING</title>
     <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@300;500;700&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -16,13 +16,11 @@
 
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #000; font-family: var(--mono); }
         
-        /* Слои */
         #container { position: relative; width: 100vw; height: 100vh; }
         #webglCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
         #hudCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 5; pointer-events: none; }
-        video { display: none; } /* Видео скрыто, его читают шейдер и TF */
+        video { display: none; }
 
-        /* Элементы Интерфейса (из твоего кода) */
         #scanlines {
             position: absolute; inset: 0; pointer-events: none; z-index: 6;
             background: repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,0,0,0.1) 3px, rgba(0,0,0,0.1) 4px);
@@ -65,19 +63,21 @@
     <button id="startBtn">INITIALIZE NEURAL LINK</button>
     
     <video id="video" autoplay playsinline muted></video>
-    <canvas id="webglCanvas"></canvas> <canvas id="hudCanvas"></canvas>   <div id="scanlines"></div>
+    <canvas id="webglCanvas"></canvas> 
+    <canvas id="hudCanvas"></canvas>   
+    <div id="scanlines"></div>
     
     <div id="topbar" style="display:none">
-        <div><span class="tb-label">SYS:</span>myFIX_v2.0</div>
-        <div><span class="tb-label">MODE:</span><span id="modeVal">PASSIVE</span></div>
+        <div><span class="tb-label">SYS:</span>myFIX_v2.5_VECTOR</div>
+        <div><span class="tb-label">MODE:</span><span id="modeVal">SEARCHING</span></div>
         <div id="clockVal">00:00:00</div>
     </div>
 
     <div id="terminal"></div>
 
     <div id="statusPanel" style="display:none">
-        <div class="sp-row"><span>NET</span><span>ONLINE</span></div>
-        <div class="sp-row"><span>CORE</span><span>COCO-SSD</span></div>
+        <div class="sp-row"><span>NET</span><span>ACTIVE</span></div>
+        <div class="sp-row"><span>DB_UNITS</span><span>80 COCO</span></div>
         <div class="sp-row"><span>EW_THREAT</span><span id="ewVal">LOW</span></div>
     </div>
 
@@ -85,7 +85,7 @@
 
     <div id="botbar" style="display:none">
         <span id="coordsL">LAT 55.75°N LON 37.61°E</span>
-        <span id="coordsR">ALT 184m SPD 0kts</span>
+        <span id="coordsR">ALT 184m LOCK: <span id="lockStatus">NONE</span></span>
     </div>
 </div>
 
@@ -115,28 +115,19 @@
 
     void main() {
         vec2 uv = vUv;
-        
-        // Глитч от РЭБ
         if (uEwIntensity > 0.5 && random(vec2(uTime, uv.y)) > 0.95) {
             uv.x += (random(vec2(uTime)) - 0.5) * 0.05 * uEwIntensity;
         }
-
         vec4 tex = texture2D(tDiffuse, uv);
-        
-        // Поиск границ (Edge Detection)
         float left = texture2D(tDiffuse, uv - vec2(0.002, 0.0)).g;
         float right = texture2D(tDiffuse, uv + vec2(0.002, 0.0)).g;
         float top = texture2D(tDiffuse, uv - vec2(0.0, 0.002)).g;
         float bottom = texture2D(tDiffuse, uv + vec2(0.0, 0.002)).g;
         float edge = abs(left - right) + abs(top - bottom);
 
-        // Цветовая схема: зеленый векторный мир
-        vec3 green = vec3(0.0, 1.0, 0.2) * edge * 2.5;
-        vec3 bg = tex.rgb * 0.1; // Тусклый задник
-        
-        // Шум РЭБ
-        float noise = random(uv + uTime) * 0.1 * uEwIntensity;
-
+        vec3 green = vec3(0.0, 0.8, 0.2) * edge * 2.0;
+        vec3 bg = tex.rgb * 0.15;
+        float noise = random(uv + uTime) * 0.08 * uEwIntensity;
         gl_FragColor = vec4(green + bg + noise, 1.0);
     }
 </script>
@@ -150,24 +141,22 @@
     let model;
     let predictions = [];
     let ewLevel = 0;
+    
+    // Прицел
+    let crosshair = { x: window.innerWidth/2, y: window.innerHeight/2 };
+    let targetLock = null;
 
-    // --- Инициализация Камеры и Модели ---
     startBtn.onclick = async () => {
         startBtn.style.display = 'none';
-        document.getElementById('topbar').style.display = 'flex';
-        document.getElementById('botbar').style.display = 'flex';
-        document.getElementById('statusPanel').style.display = 'block';
+        document.querySelectorAll('#topbar, #botbar, #statusPanel').forEach(el => el.style.display = 'flex');
         
-        addLog("SYSTEM BOOT...");
-        
-        const stream = await navigator.mediaDevices.getUserMedia({ 
-            video: { facingMode: "environment" } 
-        });
+        addLog("BOOTING VECTOR ENGINE...");
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
         video.srcObject = stream;
         
-        addLog("LOADING NEURAL LINK...");
+        addLog("DB: 80 OBJECT CLASSES LOADED.");
         model = await cocoSsd.load();
-        addLog("MODEL ONLINE.");
+        addLog("NEURAL LINK: ESTABLISHED.");
         
         initWebGL();
         detectLoop();
@@ -178,122 +167,139 @@
         const t = document.getElementById('terminal');
         const e = document.createElement('div');
         e.className = 'log-entry';
-        e.textContent = `> ${msg}`;
+        e.textContent = `> ${new Date().getMilliseconds()}: ${msg}`;
         t.appendChild(e);
-        if (t.childNodes.length > 5) t.removeChild(t.firstChild);
+        if (t.childNodes.length > 6) t.removeChild(t.firstChild);
     }
 
-    // --- Цикл Распознавания (TensorFlow) ---
     async function detectLoop() {
         if (model && video.readyState >= 3) {
             predictions = await model.detect(video);
             
-            // Случайные помехи РЭБ
-            if (Math.random() > 0.98) {
+            // Логика EW помех
+            if (Math.random() > 0.99) {
                 ewLevel = 1.0;
                 document.getElementById('ewAlert').classList.add('show');
-                document.getElementById('ewVal').textContent = "CRITICAL";
                 setTimeout(() => { 
                     ewLevel = 0; 
                     document.getElementById('ewAlert').classList.remove('show');
-                    document.getElementById('ewVal').textContent = "LOW";
-                }, 500);
+                }, 400);
             }
         }
-        setTimeout(detectLoop, 100);
+        setTimeout(detectLoop, 80);
     }
 
-    // --- WebGL (Фон и эффекты) ---
     function initWebGL() {
         const glCanvas = document.getElementById('webglCanvas');
         const gl = glCanvas.getContext('webgl');
-        
         function createShader(gl, type, src) {
             const s = gl.createShader(type);
             gl.shaderSource(s, src);
             gl.compileShader(s);
             return s;
         }
-
         const program = gl.createProgram();
         gl.attachShader(program, createShader(gl, gl.VERTEX_SHADER, document.getElementById('vs').text));
         gl.attachShader(program, createShader(gl, gl.FRAGMENT_SHADER, document.getElementById('fs').text));
         gl.linkProgram(program);
         gl.useProgram(program);
-
         const buffer = gl.createBuffer();
         gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, -1,1, 1,-1, 1,1]), gl.STATIC_DRAW);
-
         const posLoc = gl.getAttribLocation(program, "position");
         gl.enableVertexAttribArray(posLoc);
         gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
-
         const texture = gl.createTexture();
         gl.bindTexture(gl.TEXTURE_2D, texture);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-
         const uTime = gl.getUniformLocation(program, "uTime");
         const uEw = gl.getUniformLocation(program, "uEwIntensity");
 
         function render(now) {
-            glCanvas.width = window.innerWidth;
-            glCanvas.height = window.innerHeight;
+            glCanvas.width = window.innerWidth; glCanvas.height = window.innerHeight;
             gl.viewport(0, 0, glCanvas.width, glCanvas.height);
-
             gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, video);
             gl.uniform1f(uTime, now * 0.001);
             gl.uniform1f(uEw, ewLevel);
-
             gl.drawArrays(gl.TRIANGLES, 0, 6);
             requestAnimationFrame(render);
         }
         render();
     }
 
-    // --- Отрисовка HUD (Линии захвата) ---
     function drawHUD() {
         hudCanvas.width = window.innerWidth;
         hudCanvas.height = window.innerHeight;
-        const dpr = window.devicePixelRatio;
-        
         hudCtx.clearRect(0, 0, hudCanvas.width, hudCanvas.height);
         
-        predictions.forEach(p => {
-            const [x, y, w, h] = p.bbox;
+        let nearestTarget = null;
+        let minDist = Infinity;
+
+        predictions.forEach((p, index) => {
             const sX = hudCanvas.width / video.videoWidth;
             const sY = hudCanvas.height / video.videoHeight;
+            const [x, y, w, h] = [p.bbox[0]*sX, p.bbox[1]*sY, p.bbox[2]*sX, p.bbox[3]*sY];
+            const centerX = x + w/2;
+            const centerY = y + h/2;
+
+            // Расчет для прицела
+            const d = Math.hypot(centerX - hudCanvas.width/2, centerY - hudCanvas.height/2);
+            if (d < minDist) { minDist = d; nearestTarget = {x: centerX, y: centerY, label: p.class}; }
+
+            // 1. Рамка маска (Белая)
+            hudCtx.strokeStyle = "rgba(255, 255, 255, 0.8)";
+            hudCtx.lineWidth = 1.5;
+            hudCtx.strokeRect(x, y, w, h);
             
-            const rx = x * sX, ry = y * sY, rw = w * sX, rh = h * sY;
+            // Эффект маски внутри
+            hudCtx.fillStyle = "rgba(255, 255, 255, 0.05)";
+            hudCtx.fillRect(x, y, w, h);
+
+            // 2. Печатный текст под рамкой
+            const info = `ID_${index.toString(16).toUpperCase()} | ${p.class.toUpperCase()} | DST: ${(100/p.score).toFixed(1)}m`;
+            hudCtx.fillStyle = "#ffffff";
+            hudCtx.font = "9px Share Tech Mono";
+            // Анимация печати имитируется через обрезку строки временем
+            const charCount = Math.floor((Date.now() / 50) % 50);
+            hudCtx.fillText(info.substring(0, charCount), x, y + h + 15);
             
-            // Цвет в зависимости от "опасности" (человек/машина - красный)
-            const isThreat = ['person', 'car', 'truck'].includes(p.class);
-            hudCtx.strokeStyle = isThreat ? '#ff2020' : '#00ff41';
-            hudCtx.lineWidth = 2;
-            
-            // Углы рамки
-            const len = 20;
+            // Декоративный уголок
             hudCtx.beginPath();
-            hudCtx.moveTo(rx, ry + len); hudCtx.lineTo(rx, ry); hudCtx.lineTo(rx + len, ry);
-            hudCtx.moveTo(rx + rw - len, ry); hudCtx.lineTo(rx + rw, ry); hudCtx.lineTo(rx + rw, ry + len);
-            hudCtx.moveTo(rx + rw, ry + rh - len); hudCtx.lineTo(rx + rw, ry + rh); hudCtx.lineTo(rx + rw - len, ry + rh);
-            hudCtx.moveTo(rx, ry + rh - len); hudCtx.lineTo(rx, ry + rh); hudCtx.lineTo(rx + len, ry + rh);
+            hudCtx.moveTo(x, y + h + 5); hudCtx.lineTo(x + 20, y + h + 5);
             hudCtx.stroke();
-            
-            // Текст
-            hudCtx.fillStyle = hudCtx.strokeStyle;
-            hudCtx.font = "12px Share Tech Mono";
-            hudCtx.fillText(`${p.class.toUpperCase()} [${Math.round(p.score*100)}%]`, rx, ry - 10);
         });
 
-        // Часы
+        // 3. ПРИЦЕЛ САМОНАВЕДЕНИЯ (myFIX)
+        if (nearestTarget) {
+            crosshair.x += (nearestTarget.x - crosshair.x) * 0.2;
+            crosshair.y += (nearestTarget.y - crosshair.y) * 0.2;
+            document.getElementById('lockStatus').textContent = nearestTarget.label.toUpperCase();
+            document.getElementById('lockStatus').style.color = "var(--red)";
+        } else {
+            crosshair.x += (hudCanvas.width/2 - crosshair.x) * 0.1;
+            crosshair.y += (hudCanvas.height/2 - crosshair.y) * 0.1;
+            document.getElementById('lockStatus').textContent = "NONE";
+            document.getElementById('lockStatus').style.color = "var(--green)";
+        }
+
+        // Отрисовка прицела
+        hudCtx.strokeStyle = nearestTarget ? "var(--red)" : "var(--green)";
+        hudCtx.lineWidth = 1;
+        // Круг прицела
+        hudCtx.beginPath();
+        hudCtx.arc(crosshair.x, crosshair.y, 30, 0, Math.PI*2);
+        hudCtx.stroke();
+        // Перекрестие
+        hudCtx.beginPath();
+        hudCtx.moveTo(crosshair.x - 40, crosshair.y); hudCtx.lineTo(crosshair.x + 40, crosshair.y);
+        hudCtx.moveTo(crosshair.x, crosshair.y - 40); hudCtx.lineTo(crosshair.x, crosshair.y + 40);
+        hudCtx.stroke();
+
         document.getElementById('clockVal').textContent = new Date().toLocaleTimeString();
-        
         requestAnimationFrame(drawHUD);
     }
 </script>
-
 </body>
 </html>
