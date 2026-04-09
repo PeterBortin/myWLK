@@ -3,13 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>myFIX + VECTOR EW | WHITE CORE</title>
+    <title>myFIX + VECTOR EW | GLITCH CORE</title>
     <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@300;500;700&display=swap" rel="stylesheet">
     <style>
         :root {
             --red: #ff2020;
             --green: #00ff41;
             --white: #ffffff;
+            --cyan: #00ffff;
             --mono: 'Share Tech Mono', monospace;
             --sans: 'Rajdhani', sans-serif;
         }
@@ -18,45 +19,50 @@
         #webglCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
         #hudCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 5; pointer-events: none; }
         video { display: none; }
-        #scanlines { position: absolute; inset: 0; pointer-events: none; z-index: 6; background: repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,0,0,0.1) 3px, rgba(0,0,0,0.1) 4px); }
-        #topbar, #botbar { position: absolute; left: 0; right: 0; height: 36px; display: flex; align-items: center; justify-content: space-between; padding: 0 18px; z-index: 15; color: rgba(255,255,255,0.7); font-size: 11px; background: rgba(0,0,0,0.4); backdrop-filter: blur(2px); }
-        #topbar { top: 0; border-bottom: 1px solid rgba(0,255,65,0.3); }
-        #botbar { bottom: 0; border-top: 1px solid rgba(0,255,65,0.3); }
-        .tb-label { font-family: var(--sans); font-size: 9px; color: var(--green); opacity: 0.6; margin-right: 5px; }
-        #terminal { position: absolute; bottom: 50px; left: 15px; width: 300px; z-index: 15; pointer-events: none; }
-        .log-entry { font-size: 10px; color: var(--green); opacity: 0.8; margin-bottom: 4px; font-family: var(--mono); text-shadow: 0 0 2px #00ff41; }
-        #statusPanel { position: absolute; top: 50px; right: 15px; width: 180px; z-index: 15; color: var(--green); background: rgba(0,0,0,0.5); padding: 8px; border-left: 1px solid var(--green); font-family: var(--mono); }
-        .sp-row { display: flex; justify-content: space-between; font-size: 10px; border-bottom: 1px solid rgba(0,255,65,0.2); padding: 4px 0; }
-        #startBtn { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.8); border: 2px solid var(--green); color: var(--green); padding: 20px 40px; font-family: var(--sans); font-weight: bold; cursor: pointer; z-index: 100; font-size: 18px; letter-spacing: 2px; transition: all 0.3s; }
-        #startBtn:hover { background: var(--green); color: #000; box-shadow: 0 0 20px var(--green); }
-        #ewAlert { position: absolute; top: 50px; right: 210px; color: var(--red); font-family: var(--sans); font-weight: bold; opacity: 0; z-index: 15; text-shadow: 0 0 5px red; }
-        #ewAlert.show { opacity: 1; animation: blink 0.3s infinite; }
-        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+        #scanlines { position: absolute; inset: 0; pointer-events: none; z-index: 6; background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.15) 2px, rgba(0,0,0,0.15) 3px); opacity: 0.5; }
+        #topbar, #botbar { position: absolute; left: 0; right: 0; height: 38px; display: flex; align-items: center; justify-content: space-between; padding: 0 18px; z-index: 15; color: rgba(255,255,255,0.8); font-size: 11px; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); font-family: var(--mono); }
+        #topbar { top: 0; border-bottom: 1px solid var(--green); box-shadow: 0 0 10px rgba(0,255,65,0.2); }
+        #botbar { bottom: 0; border-top: 1px solid var(--green); }
+        .tb-label { font-family: var(--sans); font-size: 9px; color: var(--green); opacity: 0.8; margin-right: 5px; letter-spacing: 1px; }
+        #terminal { position: absolute; bottom: 55px; left: 15px; width: 320px; z-index: 15; pointer-events: none; background: rgba(0,0,0,0.5); padding: 8px; border-left: 2px solid var(--green); }
+        .log-entry { font-size: 10px; color: var(--green); opacity: 0.9; margin-bottom: 4px; font-family: var(--mono); text-shadow: 0 0 2px #00ff41; }
+        #statusPanel { position: absolute; top: 55px; right: 15px; width: 190px; z-index: 15; color: var(--green); background: rgba(0,0,0,0.6); padding: 10px; border-right: 2px solid var(--cyan); font-family: var(--mono); backdrop-filter: blur(4px); }
+        .sp-row { display: flex; justify-content: space-between; font-size: 10px; border-bottom: 1px solid rgba(0,255,65,0.2); padding: 5px 0; }
+        .sp-row span:first-child { color: var(--cyan); }
+        #startBtn { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.9); border: 2px solid var(--green); color: var(--green); padding: 20px 45px; font-family: var(--sans); font-weight: bold; cursor: pointer; z-index: 100; font-size: 20px; letter-spacing: 3px; transition: all 0.3s; box-shadow: 0 0 20px rgba(0,255,65,0.3); }
+        #startBtn:hover { background: var(--green); color: #000; box-shadow: 0 0 40px var(--green); transform: translate(-50%, -50%) scale(1.05); }
+        #ewAlert { position: absolute; top: 55px; right: 220px; color: var(--red); font-family: var(--sans); font-weight: bold; opacity: 0; z-index: 15; text-shadow: 0 0 5px red; font-size: 12px; letter-spacing: 2px; }
+        #ewAlert.show { opacity: 1; animation: glitchFlash 0.2s infinite; }
+        @keyframes glitchFlash { 0%, 100% { opacity: 1; text-shadow: 2px 0 red; } 50% { opacity: 0.8; text-shadow: -2px 0 var(--green); } }
+        .glitch-text { animation: textGlitch 0.3s infinite; }
+        @keyframes textGlitch { 0% { transform: skew(0deg); } 20% { transform: skew(2deg); } 40% { transform: skew(-2deg); } 60% { transform: skew(1deg); } 80% { transform: skew(-1deg); } 100% { transform: skew(0deg); } }
     </style>
 </head>
 <body>
 
 <div id="container">
-    <button id="startBtn">INITIALIZE NEURAL LINK</button>
+    <button id="startBtn">⚡ INITIALIZE NEURAL LINK ⚡</button>
     <video id="video" autoplay playsinline muted></video>
     <canvas id="webglCanvas"></canvas> 
     <canvas id="hudCanvas"></canvas>   
     <div id="scanlines"></div>
     <div id="topbar" style="display:none">
-        <div><span class="tb-label">SYS:</span>myFIX_v3.0</div>
-        <div><span class="tb-label">MODE:</span><span id="modeVal">WHITE_ISOLATION</span></div>
+        <div><span class="tb-label">SYS:</span>myFIX_GLITCH_v4.0</div>
+        <div><span class="tb-label">MODE:</span><span id="modeVal">RAW_CORE_ACTIVE</span></div>
         <div id="clockVal">00:00:00</div>
     </div>
     <div id="terminal"></div>
     <div id="statusPanel" style="display:none">
-        <div class="sp-row"><span>NEURAL NET</span><span>ACTIVE</span></div>
-        <div class="sp-row"><span>DETECTIONS</span><span id="detCount">0</span></div>
-        <div class="sp-row"><span>EW STATUS</span><span id="ewVal">STABLE</span></div>
+        <div class="sp-row"><span>⚡ NEURAL NET</span><span id="netStatus">SYNAPSE_ACTIVE</span></div>
+        <div class="sp-row"><span>🎯 DETECTIONS</span><span id="detCount">0</span></div>
+        <div class="sp-row"><span>🌀 EW STATUS</span><span id="ewVal">STABLE</span></div>
+        <div class="sp-row"><span>📡 BANDWIDTH</span><span id="bandwidth">100%</span></div>
     </div>
-    <div id="ewAlert">⚠ EW INTERFERENCE DETECTED</div>
+    <div id="ewAlert">⚠⚠⚠ EW INTERFERENCE ⚠⚠⚠</div>
     <div id="botbar" style="display:none">
-        <span id="coordsL">LAT 55.75°N LON 37.61°E</span>
-        <span id="coordsR">WHITE CORE ACTIVE</span>
+        <span id="coordsL">📍 55.75°N 37.61°E</span>
+        <span id="coordsR">🔍 GLITCH_CORE_ENGAGED</span>
+        <span id="fpsCounter">FPS: --</span>
     </div>
 </div>
 
@@ -94,51 +100,58 @@
     
     void main() {
         vec2 uv = vUv;
-        // EW interference effect
-        if (uEwIntensity > 0.5 && random(vec2(uTime, uv.y)) > 0.95) { 
-            uv.x += (random(vec2(uTime)) - 0.5) * 0.04 * uEwIntensity; 
-        }
-        
-        vec4 tex = texture2D(tDiffuse, uv);
         bool insideRect = isInsideAnyRect(uv, uRects, uRectsCount);
         
-        vec3 finalColor;
+        vec4 finalColor;
         
         if (insideRect) {
-            // ВНУТРИ РАМКИ: зеленый инвертируем в белый
-            float r = tex.r;
-            float g = tex.g;
-            float b = tex.b;
+            // ВНУТРИ РАМКИ: ПОЛНОСТЬЮ ОРИГИНАЛЬНЫЙ КАДР (без фильтров)
+            finalColor = texture2D(tDiffuse, uv);
             
-            // Определяем зеленые пиксели (с порогом)
-            bool isGreen = (g > r * 1.3 && g > b * 1.3 && g > 0.12);
-            
-            if (isGreen) {
-                // Зеленый -> Белый
-                finalColor = vec3(1.0, 1.0, 1.0);
-            } else {
-                // Не зеленые пиксели: слегка затемняем, но оставляем различимыми
-                finalColor = tex.rgb * 0.6;
+            // Добавляем легкий глитч-эффект при EW интерференции внутри рамки
+            if (uEwIntensity > 0.4) {
+                float glitchAmount = uEwIntensity * 0.15;
+                vec2 glitchOffset = vec2(random(vec2(uTime, uv.y)) * glitchAmount, 0.0);
+                vec4 glitchTex = texture2D(tDiffuse, uv + glitchOffset);
+                if (random(vec2(uTime, uv.x)) > 0.7) {
+                    finalColor = mix(finalColor, glitchTex, 0.7);
+                }
+                // RGB split эффект
+                if (random(vec2(uTime * 0.5, uv.y)) > 0.8) {
+                    float split = 0.008 * uEwIntensity;
+                    float r = texture2D(tDiffuse, uv + vec2(split, 0.0)).r;
+                    float b = texture2D(tDiffuse, uv - vec2(split, 0.0)).b;
+                    finalColor = vec4(r, finalColor.g, b, 1.0);
+                }
             }
         } else {
-            // ВНЕ РАМКИ: затемненный фон + слабый зеленый оттенок для атмосферы
-            finalColor = tex.rgb * 0.12;
-            // Добавляем легкий зеленый оттенок по краям для эстетики
-            finalColor += vec3(0.0, 0.05, 0.0);
+            // ВНЕ РАМКИ: затемненный фон + кибер-эффекты
+            vec4 tex = texture2D(tDiffuse, uv);
+            
+            // Edge detection для зеленого свечения
+            float left = texture2D(tDiffuse, uv - vec2(0.003, 0.0)).g;
+            float right = texture2D(tDiffuse, uv + vec2(0.003, 0.0)).g;
+            float top = texture2D(tDiffuse, uv - vec2(0.0, 0.003)).g;
+            float bottom = texture2D(tDiffuse, uv + vec2(0.0, 0.003)).g;
+            float edge = abs(left - right) + abs(top - bottom);
+            vec3 edgeGlow = vec3(0.0, 0.9, 0.3) * edge * 2.5;
+            
+            // Затемнение фона
+            vec3 bg = tex.rgb * 0.08;
+            
+            // Шум и глитч по всему экрану при EW
+            float noise = random(uv + uTime) * 0.12 * uEwIntensity;
+            vec3 scanline = vec3(0.0, sin(uv.y * 800.0 + uTime * 20.0) * 0.05, 0.0);
+            
+            finalColor = vec4(bg + edgeGlow + noise + scanline, 1.0);
         }
         
-        // Edge detection для кибер-эффекта (зеленые контуры)
-        float left = texture2D(tDiffuse, uv - vec2(0.003, 0.0)).g;
-        float right = texture2D(tDiffuse, uv + vec2(0.003, 0.0)).g;
-        float top = texture2D(tDiffuse, uv - vec2(0.0, 0.003)).g;
-        float bottom = texture2D(tDiffuse, uv + vec2(0.0, 0.003)).g;
-        float edge = abs(left - right) + abs(top - bottom);
-        vec3 edgeGlow = vec3(0.0, 0.8, 0.1) * edge * 1.8;
+        // Дополнительный глобальный глитч при сильной EW
+        if (uEwIntensity > 0.8 && random(vec2(uTime, uv.y)) > 0.92) {
+            finalColor.rgb = vec3(1.0, 0.0, 0.0);
+        }
         
-        // Добавляем шум при EW интерференции
-        float noise = random(uv + uTime) * 0.1 * uEwIntensity;
-        
-        gl_FragColor = vec4(finalColor + edgeGlow + noise, 1.0);
+        gl_FragColor = finalColor;
     }
 </script>
 
@@ -154,37 +167,54 @@
     let program = null;
     let uRectsLoc = null;
     let uRectsCountLoc = null;
-    let currentRects = new Array(40).fill(0); // 20 rects * 2 coords each = 40 floats
+    let frameCount = 0;
+    let lastTime = performance.now();
+    let fps = 30;
     
     startBtn.onclick = async () => {
         startBtn.style.display = 'none';
         document.querySelectorAll('#topbar, #botbar, #statusPanel').forEach(el => el.style.display = 'flex');
         try {
-            addLog("INITIALIZING CAMERA FEED...");
+            addLog(">> INITIALIZING NEURAL INTERFACE <<");
+            addLog("CAMERA ACTIVATION SEQUENCE...");
             const stream = await navigator.mediaDevices.getUserMedia({ 
-                video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } } 
+                video: { facingMode: "environment", width: { ideal: 1920 }, height: { ideal: 1080 } } 
             });
             video.srcObject = stream;
             await video.play();
-            addLog("VIDEO STREAM ACTIVE");
+            addLog("✓ VIDEO FEED ACQUIRED");
             
-            addLog("LOADING COCO-SSD MODEL...");
+            addLog("LOADING COCO-SSD NEURAL MODEL...");
             model = await cocoSsd.load();
-            addLog("MODEL READY | WHITE CORE ENGAGED");
-            addLog(">>> GREEN PIXELS INSIDE BOXES → WHITE <<<");
+            addLog("✓ MODEL LOADED | DETECTION ACTIVE");
+            addLog(">>> GLITCH CORE ENGAGED <<<");
+            addLog(">>> REAL-TIME RAW FEED INSIDE BOUNDING BOXES <<<");
             
             initWebGL();
             detectLoop();
             drawHUD();
             
-            // Обновляем счетчик детекций
+            // Анимация статуса
             setInterval(() => {
                 const countElem = document.getElementById('detCount');
-                if (countElem) countElem.textContent = predictions.length;
-            }, 500);
+                if (countElem) {
+                    countElem.textContent = predictions.length;
+                    if (predictions.length > 0) {
+                        countElem.style.color = '#00ff41';
+                        countElem.style.textShadow = '0 0 5px #00ff41';
+                    }
+                }
+                
+                // Динамическая полоса пропускания
+                const bwElem = document.getElementById('bandwidth');
+                if (bwElem) {
+                    const bw = 85 + Math.sin(Date.now() / 500) * 15;
+                    bwElem.textContent = Math.floor(bw) + '%';
+                }
+            }, 300);
             
         } catch(err) {
-            addLog("ERROR: " + err.message);
+            addLog("⚠ ERROR: " + err.message);
             console.error(err);
         }
     };
@@ -193,71 +223,88 @@
         const t = document.getElementById('terminal');
         const e = document.createElement('div');
         e.className = 'log-entry';
-        e.textContent = `> ${msg}`;
+        e.innerHTML = `> ${msg}`;
         t.appendChild(e);
-        if (t.childNodes.length > 7) t.removeChild(t.firstChild);
+        if (t.childNodes.length > 8) t.removeChild(t.firstChild);
+        // Автоскролл
+        t.scrollTop = t.scrollHeight;
     }
     
     async function detectLoop() {
         if (model && video.readyState >= 3 && video.videoWidth > 0) {
             try {
+                const startDetect = performance.now();
                 predictions = await model.detect(video);
+                const detectTime = performance.now() - startDetect;
                 
-                // Симуляция EW интерференции
-                if (Math.random() > 0.98) {
+                // EW интерференция с более реалистичной динамикой
+                const randomEW = Math.random();
+                if (randomEW > 0.985) {
                     ewLevel = 1.0;
                     document.getElementById('ewAlert').classList.add('show');
-                    document.getElementById('ewVal').innerHTML = '<span style="color:#ff2020">CRITICAL</span>';
-                    addLog("⚠ EW INTERFERENCE SPIKE DETECTED");
+                    document.getElementById('ewVal').innerHTML = '<span style="color:#ff2020; animation: glitchFlash 0.1s infinite;">⚠ CRITICAL ⚠</span>';
+                    addLog("⚠⚠⚠ EW PULSE DETECTED | VISUAL GLITCH ACTIVE ⚠⚠⚠");
+                    
+                    // Глитч-анимация на HUD
+                    if (hudCanvas) {
+                        hudCanvas.style.animation = 'glitchFlash 0.05s infinite';
+                        setTimeout(() => { hudCanvas.style.animation = ''; }, 500);
+                    }
+                    
                     setTimeout(() => {
-                        ewLevel = 0;
-                        document.getElementById('ewAlert').classList.remove('show');
-                        document.getElementById('ewVal').innerHTML = 'STABLE';
-                    }, 500);
-                } else if (Math.random() > 0.96 && ewLevel === 0) {
-                    ewLevel = 0.5;
-                    document.getElementById('ewVal').innerHTML = '<span style="color:#ffaa00">MODERATE</span>';
-                    setTimeout(() => {
-                        if (ewLevel === 0.5) {
-                            ewLevel = 0;
+                        ewLevel = Math.random() > 0.7 ? 0.3 : 0;
+                        if (ewLevel === 0) {
+                            document.getElementById('ewAlert').classList.remove('show');
                             document.getElementById('ewVal').innerHTML = 'STABLE';
+                        } else {
+                            document.getElementById('ewVal').innerHTML = '<span style="color:#ffaa00">MODERATE</span>';
                         }
-                    }, 300);
+                    }, 400);
+                } else if (randomEW > 0.97 && ewLevel < 0.8) {
+                    ewLevel = 0.5 + Math.random() * 0.3;
+                    document.getElementById('ewVal').innerHTML = '<span style="color:#ffaa00">⚠ INTERFERENCE ⚠</span>';
+                    setTimeout(() => {
+                        if (ewLevel > 0.4) ewLevel = 0;
+                        document.getElementById('ewVal').innerHTML = 'STABLE';
+                        document.getElementById('ewAlert').classList.remove('show');
+                    }, 250);
                 }
                 
-                // Обновляем uniform-массив с bounding box'ами для шейдера
+                // Обновляем прямоугольники для шейдера
                 updateShaderRects();
+                
+                // Логируем детекции с печатью
+                if (predictions.length > 0 && Math.random() > 0.85) {
+                    const topPred = predictions[0];
+                    addLog(`🔍 DETECTED: ${topPred.class.toUpperCase()} | CONF: ${Math.round(topPred.score * 100)}%`);
+                }
                 
             } catch(e) {
                 console.warn(e);
             }
         }
-        setTimeout(detectLoop, 80);
+        setTimeout(detectLoop, 60);
     }
     
     function updateShaderRects() {
         if (!gl || !program || !uRectsLoc || !video.videoWidth) return;
         
-        // Заполняем массив прямоугольников в UV координатах (0-1)
         const rectsArray = [];
-        for (let i = 0; i < predictions.length && i < 10; i++) { // максимум 10 рамок для производительности
+        for (let i = 0; i < predictions.length && i < 10; i++) {
             const p = predictions[i];
             const [x, y, w, h] = p.bbox;
             
-            // Конвертируем координаты из пикселей видео в UV (0-1)
-            const uvX = x / video.videoWidth;
-            const uvY = y / video.videoHeight;
-            const uvW = w / video.videoWidth;
-            const uvH = h / video.videoHeight;
+            const uvX = Math.max(0, Math.min(1, x / video.videoWidth));
+            const uvY = Math.max(0, Math.min(1, y / video.videoHeight));
+            const uvW = Math.max(0, Math.min(1, w / video.videoWidth));
+            const uvH = Math.max(0, Math.min(1, h / video.videoHeight));
             
-            rectsArray.push(uvX, uvY);           // min corner
-            rectsArray.push(uvX + uvW, uvY + uvH); // max corner
+            rectsArray.push(uvX, uvY);
+            rectsArray.push(uvX + uvW, uvY + uvH);
         }
         
-        // Дополняем нулями до 40 значений (20 прямоугольников)
         while (rectsArray.length < 40) rectsArray.push(0);
         
-        // Отправляем в шейдер
         gl.uniform2fv(uRectsLoc, rectsArray);
         gl.uniform1i(uRectsCountLoc, predictions.length);
     }
@@ -266,7 +313,7 @@
         const glCanvas = document.getElementById('webglCanvas');
         gl = glCanvas.getContext('webgl');
         if (!gl) {
-            addLog("WEBGL NOT SUPPORTED");
+            addLog("WEBGL ERROR");
             return;
         }
         
@@ -276,7 +323,6 @@
             gl.compileShader(s);
             if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
                 console.error(gl.getShaderInfoLog(s));
-                addLog("SHADER COMPILE ERROR");
             }
             return s;
         }
@@ -308,7 +354,6 @@
         uRectsLoc = gl.getUniformLocation(program, "uRects");
         uRectsCountLoc = gl.getUniformLocation(program, "uRectsCount");
         
-        // Инициализируем массив прямоугольников
         const initialRects = new Array(40).fill(0);
         gl.uniform2fv(uRectsLoc, initialRects);
         gl.uniform1i(uRectsCountLoc, 0);
@@ -328,10 +373,22 @@
             gl.uniform1f(uTimeLoc, now * 0.001);
             gl.uniform1f(uEwLoc, ewLevel);
             gl.drawArrays(gl.TRIANGLES, 0, 6);
+            
+            // FPS подсчет
+            frameCount++;
+            const nowTime = performance.now();
+            if (nowTime - lastTime >= 1000) {
+                fps = frameCount;
+                frameCount = 0;
+                lastTime = nowTime;
+                const fpsElem = document.getElementById('fpsCounter');
+                if (fpsElem) fpsElem.textContent = `FPS: ${fps}`;
+            }
+            
             requestAnimationFrame(render);
         }
         render();
-        addLog("WEBGL RENDERER ACTIVE | PER-OBJECT GREEN→WHITE CONVERSION");
+        addLog("✓ WEBGL RENDERER ACTIVE | RAW FEED INSIDE BOXES");
     }
     
     function drawHUD() {
@@ -348,24 +405,33 @@
         const scaleX = hudCanvas.width / video.videoWidth;
         const scaleY = hudCanvas.height / video.videoHeight;
         
-        // Рисуем ТОЛЬКО рамки и текст. НИКАКОЙ ЗАЛИВКИ ВНУТРИ.
-        predictions.forEach(p => {
+        predictions.forEach((p, idx) => {
             const [x, y, w, h] = p.bbox;
             const screenX = x * scaleX;
             const screenY = y * scaleY;
             const screenW = w * scaleX;
             const screenH = h * scaleY;
             
-            // БЕЛАЯ РАМКА (без заливки)
-            hudCtx.strokeStyle = "#ffffff";
+            // ДИНАМИЧЕСКАЯ РАМКА (пульсирующая)
+            const pulse = 0.5 + Math.sin(Date.now() / 100 + idx * 500) * 0.3;
+            hudCtx.strokeStyle = `rgba(0, 255, 65, ${0.7 + pulse * 0.3})`;
             hudCtx.lineWidth = 2.5;
             hudCtx.strokeRect(screenX, screenY, screenW, screenH);
             
-            // Дополнительные угловые маркеры для кибер-эстетики
+            // Двойная рамка с глитч-эффектом
+            if (ewLevel > 0.3) {
+                hudCtx.strokeStyle = `rgba(255, 0, 0, 0.6)`;
+                hudCtx.lineWidth = 1;
+                hudCtx.strokeRect(screenX + 2, screenY + 2, screenW - 4, screenH - 4);
+                hudCtx.strokeStyle = `rgba(0, 255, 255, 0.6)`;
+                hudCtx.strokeRect(screenX - 1, screenY - 1, screenW + 2, screenH + 2);
+            }
+            
+            // Угловые маркеры с анимацией
+            const markerLen = 12;
             hudCtx.beginPath();
-            hudCtx.strokeStyle = "#ffffff";
-            hudCtx.lineWidth = 1.5;
-            const markerLen = 8;
+            hudCtx.strokeStyle = `#00ff41`;
+            hudCtx.lineWidth = 2;
             // Верхний левый
             hudCtx.moveTo(screenX, screenY + markerLen);
             hudCtx.lineTo(screenX, screenY);
@@ -384,42 +450,83 @@
             hudCtx.lineTo(screenX, screenY + screenH - markerLen);
             hudCtx.stroke();
             
-            // Текст с меткой (без фона внутри рамки, только под текстом)
-            const labelText = `${p.class.toUpperCase()} [${Math.round(p.score * 100)}%]`;
-            hudCtx.font = "bold 11px 'Share Tech Mono', monospace";
-            const textMetrics = hudCtx.measureText(labelText);
-            const textWidth = textMetrics.width;
-            const textHeight = 12;
+            // ОСНОВНОЙ ТЕКСТ с печатной информацией
+            hudCtx.font = "bold 12px 'Share Tech Mono'";
+            const className = p.class.toUpperCase();
+            const confidence = Math.round(p.score * 100);
             
-            // Фон только под текстом, НЕ внутри рамки объекта
-            hudCtx.fillStyle = "rgba(0, 0, 0, 0.75)";
-            hudCtx.fillRect(screenX, screenY - textHeight - 3, textWidth + 8, textHeight + 4);
-            hudCtx.fillStyle = "#ffffff";
-            hudCtx.fillText(labelText, screenX + 4, screenY - 4);
+            // Верхняя информационная панель
+            const infoLines = [
+                `[${idx + 1}] ${className}`,
+                `CONF: ${confidence}%`,
+                `ID: ${Math.floor(Math.random() * 10000)}`,
+                `SIG: ${(70 + Math.random() * 30).toFixed(0)}%`
+            ];
             
-            // Дополнительная информация: координаты рамки в пикселях
-            hudCtx.font = "8px 'Share Tech Mono'";
-            hudCtx.fillStyle = "rgba(255,255,255,0.6)";
-            const coordText = `${Math.round(w)}x${Math.round(h)}`;
-            hudCtx.fillText(coordText, screenX + 4, screenY + screenH + 10);
+            let currentY = screenY - 35;
+            infoLines.forEach((line, lineIdx) => {
+                const metrics = hudCtx.measureText(line);
+                const textW = metrics.width;
+                // Фон для текста
+                hudCtx.fillStyle = "rgba(0, 0, 0, 0.85)";
+                hudCtx.fillRect(screenX, currentY - 2, textW + 8, 14);
+                hudCtx.fillStyle = lineIdx === 0 ? "#00ffff" : "#00ff41";
+                if (ewLevel > 0.5) hudCtx.fillStyle = "#ff2020";
+                hudCtx.fillText(line, screenX + 4, currentY + 8);
+                currentY += 15;
+            });
+            
+            // Нижняя информационная панель (размеры, координаты)
+            const dimText = `${Math.round(w)}x${Math.round(h)}px`;
+            const coordText = `X:${Math.round(x)} Y:${Math.round(y)}`;
+            
+            hudCtx.font = "9px 'Share Tech Mono'";
+            hudCtx.fillStyle = "rgba(0, 0, 0, 0.8)";
+            hudCtx.fillRect(screenX, screenY + screenH + 2, 90, 24);
+            hudCtx.fillStyle = "#00ff41";
+            hudCtx.fillText(dimText, screenX + 4, screenY + screenH + 12);
+            hudCtx.fillText(coordText, screenX + 4, screenY + screenH + 21);
+            
+            // Прогресс-бар уверенности
+            const barWidth = screenW * (confidence / 100);
+            hudCtx.fillStyle = "rgba(0, 255, 65, 0.3)";
+            hudCtx.fillRect(screenX, screenY + screenH + 28, barWidth, 3);
+            hudCtx.strokeStyle = "#00ff41";
+            hudCtx.strokeRect(screenX, screenY + screenH + 28, screenW, 3);
+            
+            // Анимированный векторный маркер
+            const time = Date.now() / 200;
+            const dotX = screenX + screenW / 2 + Math.sin(time) * 5;
+            const dotY = screenY + screenH / 2 + Math.cos(time * 1.3) * 5;
+            hudCtx.beginPath();
+            hudCtx.fillStyle = `rgba(0, 255, 255, 0.8)`;
+            hudCtx.arc(dotX, dotY, 3, 0, Math.PI * 2);
+            hudCtx.fill();
+            hudCtx.beginPath();
+            hudCtx.arc(dotX, dotY, 6, 0, Math.PI * 2);
+            hudCtx.strokeStyle = `rgba(0, 255, 255, 0.4)`;
+            hudCtx.stroke();
         });
         
-        // Обновляем часы
+        // Обновление часов и координат с эффектами
         const clockElem = document.getElementById('clockVal');
-        if (clockElem) clockElem.textContent = new Date().toLocaleTimeString();
+        if (clockElem) {
+            const now = new Date();
+            clockElem.textContent = now.toLocaleTimeString();
+            if (ewLevel > 0.5) clockElem.style.color = "#ff2020";
+            else clockElem.style.color = "#00ff41";
+        }
         
-        // Анимируем координаты
         const coordsLElem = document.getElementById('coordsL');
         if (coordsLElem) {
-            const lat = (55.75 + Math.sin(Date.now() / 8000) * 0.03).toFixed(3);
-            const lon = (37.61 + Math.cos(Date.now() / 9000) * 0.04).toFixed(3);
-            coordsLElem.textContent = `LAT ${lat}°N LON ${lon}°E`;
+            const lat = (55.75 + Math.sin(Date.now() / 5000) * 0.05).toFixed(4);
+            const lon = (37.61 + Math.cos(Date.now() / 6000) * 0.06).toFixed(4);
+            coordsLElem.innerHTML = `📍 ${lat}°N ${lon}°E`;
         }
         
         requestAnimationFrame(drawHUD);
     }
     
-    // Обработка ресайза
     window.addEventListener('resize', () => {
         if (hudCanvas) {
             hudCanvas.width = window.innerWidth;
@@ -427,7 +534,7 @@
         }
     });
     
-    addLog("SYSTEM READY | PRESS INITIALIZE");
+    addLog("⚡ SYSTEM ONLINE | READY FOR INITIALIZATION");
 </script>
 </body>
 </html>
