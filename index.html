@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>myFIX + VECTOR EW | ADVANCED TARGETING</title>
+    <title>myFIX + VECTOR EW | SCANNER MODE</title>
     <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@300;500;700&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -61,15 +61,14 @@
 
 <div id="container">
     <button id="startBtn">INITIALIZE NEURAL LINK</button>
-    
     <video id="video" autoplay playsinline muted></video>
     <canvas id="webglCanvas"></canvas> 
     <canvas id="hudCanvas"></canvas>   
     <div id="scanlines"></div>
     
     <div id="topbar" style="display:none">
-        <div><span class="tb-label">SYS:</span>myFIX_v2.5_VECTOR</div>
-        <div><span class="tb-label">MODE:</span><span id="modeVal">SEARCHING</span></div>
+        <div><span class="tb-label">SYS:</span>myFIX_v2.6_SCAN</div>
+        <div><span class="tb-label">MODE:</span><span id="modeVal">FULL_SCAN</span></div>
         <div id="clockVal">00:00:00</div>
     </div>
 
@@ -77,7 +76,7 @@
 
     <div id="statusPanel" style="display:none">
         <div class="sp-row"><span>NET</span><span>ACTIVE</span></div>
-        <div class="sp-row"><span>DB_UNITS</span><span>80 COCO</span></div>
+        <div class="sp-row"><span>DB</span><span>80 UNITS</span></div>
         <div class="sp-row"><span>EW_THREAT</span><span id="ewVal">LOW</span></div>
     </div>
 
@@ -85,7 +84,7 @@
 
     <div id="botbar" style="display:none">
         <span id="coordsL">LAT 55.75°N LON 37.61°E</span>
-        <span id="coordsR">ALT 184m LOCK: <span id="lockStatus">NONE</span></span>
+        <span id="coordsR">ALT 184m RECOGNITION ACTIVE</span>
     </div>
 </div>
 
@@ -141,22 +140,18 @@
     let model;
     let predictions = [];
     let ewLevel = 0;
-    
-    // Прицел
-    let crosshair = { x: window.innerWidth/2, y: window.innerHeight/2 };
-    let targetLock = null;
 
     startBtn.onclick = async () => {
         startBtn.style.display = 'none';
         document.querySelectorAll('#topbar, #botbar, #statusPanel').forEach(el => el.style.display = 'flex');
         
-        addLog("BOOTING VECTOR ENGINE...");
+        addLog("BOOTING SCANNER...");
         const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
         video.srcObject = stream;
         
-        addLog("DB: 80 OBJECT CLASSES LOADED.");
+        addLog("SYSTEM: WHITE FILTER ACTIVE.");
         model = await cocoSsd.load();
-        addLog("NEURAL LINK: ESTABLISHED.");
+        addLog("NEURAL LINK: READY.");
         
         initWebGL();
         detectLoop();
@@ -167,7 +162,7 @@
         const t = document.getElementById('terminal');
         const e = document.createElement('div');
         e.className = 'log-entry';
-        e.textContent = `> ${new Date().getMilliseconds()}: ${msg}`;
+        e.textContent = `> ${msg}`;
         t.appendChild(e);
         if (t.childNodes.length > 6) t.removeChild(t.firstChild);
     }
@@ -175,8 +170,6 @@
     async function detectLoop() {
         if (model && video.readyState >= 3) {
             predictions = await model.detect(video);
-            
-            // Логика EW помех
             if (Math.random() > 0.99) {
                 ewLevel = 1.0;
                 document.getElementById('ewAlert').classList.add('show');
@@ -234,68 +227,44 @@
         hudCanvas.height = window.innerHeight;
         hudCtx.clearRect(0, 0, hudCanvas.width, hudCanvas.height);
         
-        let nearestTarget = null;
-        let minDist = Infinity;
-
         predictions.forEach((p, index) => {
             const sX = hudCanvas.width / video.videoWidth;
             const sY = hudCanvas.height / video.videoHeight;
             const [x, y, w, h] = [p.bbox[0]*sX, p.bbox[1]*sY, p.bbox[2]*sX, p.bbox[3]*sY];
-            const centerX = x + w/2;
-            const centerY = y + h/2;
 
-            // Расчет для прицела
-            const d = Math.hypot(centerX - hudCanvas.width/2, centerY - hudCanvas.height/2);
-            if (d < minDist) { minDist = d; nearestTarget = {x: centerX, y: centerY, label: p.class}; }
-
-            // 1. Рамка маска (Белая)
-            hudCtx.strokeStyle = "rgba(255, 255, 255, 0.8)";
-            hudCtx.lineWidth = 1.5;
-            hudCtx.strokeRect(x, y, w, h);
+            // 1. Эффект БЕЛОГО фильтра внутри рамки
+            hudCtx.fillStyle = "rgba(255, 255, 255, 0.15)";
+            hudCtx.fillRect(x, y, w, h);
             
-            // Эффект маски внутри
-            hudCtx.fillStyle = "rgba(255, 255, 255, 0.05)";
+            // Световой блик (сканирующая полоса внутри рамки)
+            const scanPos = (Date.now() % 2000) / 2000;
+            const gradient = hudCtx.createLinearGradient(x, y, x, y + h);
+            gradient.addColorStop(Math.max(0, scanPos - 0.1), "rgba(255, 255, 255, 0)");
+            gradient.addColorStop(scanPos, "rgba(255, 255, 255, 0.4)");
+            gradient.addColorStop(Math.min(1, scanPos + 0.1), "rgba(255, 255, 255, 0)");
+            hudCtx.fillStyle = gradient;
             hudCtx.fillRect(x, y, w, h);
 
-            // 2. Печатный текст под рамкой
-            const info = `ID_${index.toString(16).toUpperCase()} | ${p.class.toUpperCase()} | DST: ${(100/p.score).toFixed(1)}m`;
+            // 2. Рамка (Белый контур)
+            hudCtx.strokeStyle = "#ffffff";
+            hudCtx.lineWidth = 1;
+            hudCtx.strokeRect(x, y, w, h);
+
+            // 3. Данные (Печатный текст под рамкой)
+            const infoText = `UNIT: ${p.class.toUpperCase()} | CONF: ${(p.score * 100).toFixed(0)}% | STATUS: DETECTED`;
             hudCtx.fillStyle = "#ffffff";
-            hudCtx.font = "9px Share Tech Mono";
-            // Анимация печати имитируется через обрезку строки временем
-            const charCount = Math.floor((Date.now() / 50) % 50);
-            hudCtx.fillText(info.substring(0, charCount), x, y + h + 15);
+            hudCtx.font = "10px Share Tech Mono";
             
-            // Декоративный уголок
+            // Анимация печати
+            const chars = Math.floor((Date.now() / 40) % 60);
+            hudCtx.fillText(infoText.substring(0, chars), x, y + h + 14);
+            
+            // Нижний декоративный разделитель
             hudCtx.beginPath();
-            hudCtx.moveTo(x, y + h + 5); hudCtx.lineTo(x + 20, y + h + 5);
+            hudCtx.moveTo(x, y + h + 4);
+            hudCtx.lineTo(x + w * 0.3, y + h + 4);
             hudCtx.stroke();
         });
-
-        // 3. ПРИЦЕЛ САМОНАВЕДЕНИЯ (myFIX)
-        if (nearestTarget) {
-            crosshair.x += (nearestTarget.x - crosshair.x) * 0.2;
-            crosshair.y += (nearestTarget.y - crosshair.y) * 0.2;
-            document.getElementById('lockStatus').textContent = nearestTarget.label.toUpperCase();
-            document.getElementById('lockStatus').style.color = "var(--red)";
-        } else {
-            crosshair.x += (hudCanvas.width/2 - crosshair.x) * 0.1;
-            crosshair.y += (hudCanvas.height/2 - crosshair.y) * 0.1;
-            document.getElementById('lockStatus').textContent = "NONE";
-            document.getElementById('lockStatus').style.color = "var(--green)";
-        }
-
-        // Отрисовка прицела
-        hudCtx.strokeStyle = nearestTarget ? "var(--red)" : "var(--green)";
-        hudCtx.lineWidth = 1;
-        // Круг прицела
-        hudCtx.beginPath();
-        hudCtx.arc(crosshair.x, crosshair.y, 30, 0, Math.PI*2);
-        hudCtx.stroke();
-        // Перекрестие
-        hudCtx.beginPath();
-        hudCtx.moveTo(crosshair.x - 40, crosshair.y); hudCtx.lineTo(crosshair.x + 40, crosshair.y);
-        hudCtx.moveTo(crosshair.x, crosshair.y - 40); hudCtx.lineTo(crosshair.x, crosshair.y + 40);
-        hudCtx.stroke();
 
         document.getElementById('clockVal').textContent = new Date().toLocaleTimeString();
         requestAnimationFrame(drawHUD);
