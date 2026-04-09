@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>myFIX + VECTOR EW | PURE SCAN</title>
+    <title>myFIX + VECTOR EW | WHITE MASK</title>
     <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@300;500;700&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -67,8 +67,8 @@
     <div id="scanlines"></div>
     
     <div id="topbar" style="display:none">
-        <div><span class="tb-label">SYS:</span>myFIX_v2.7</div>
-        <div><span class="tb-label">MODE:</span><span id="modeVal">VECTOR_MASK</span></div>
+        <div><span class="tb-label">SYS:</span>myFIX_v2.8</div>
+        <div><span class="tb-label">MODE:</span><span id="modeVal">UNIT_ISOLATION</span></div>
         <div id="clockVal">00:00:00</div>
     </div>
 
@@ -84,7 +84,7 @@
 
     <div id="botbar" style="display:none">
         <span id="coordsL">LAT 55.75°N LON 37.61°E</span>
-        <span id="coordsR">MASKING: ENABLED</span>
+        <span id="coordsR">OBJ_FILTER: WHITE_MASK</span>
     </div>
 </div>
 
@@ -145,12 +145,12 @@
         startBtn.style.display = 'none';
         document.querySelectorAll('#topbar, #botbar, #statusPanel').forEach(el => el.style.display = 'flex');
         
-        addLog("INITIALIZING VECTOR SCAN...");
+        addLog("LINKING TO VECTOR CORE...");
         const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
         video.srcObject = stream;
         
         model = await cocoSsd.load();
-        addLog("DB_80 LOADED. MASKING ACTIVE.");
+        addLog("DB_80 ONLINE. FILTERING OBJECTS...");
         
         initWebGL();
         detectLoop();
@@ -231,28 +231,29 @@
             const sY = hudCanvas.height / video.videoHeight;
             const [x, y, w, h] = [p.bbox[0]*sX, p.bbox[1]*sY, p.bbox[2]*sX, p.bbox[3]*sY];
 
-            // 1. Сплошной БЕЛЫЙ фильтр внутри (замена зеленого)
-            hudCtx.fillStyle = "rgba(255, 255, 255, 0.2)"; 
+            // --- БЕЛЫЙ СЛОЙ (ФИЛЬТР) ВНУТРИ РАМКИ ---
+            // Делаем сплошную белую заливку с небольшой прозрачностью для эффекта фильтра
+            hudCtx.fillStyle = "rgba(255, 255, 255, 0.25)"; 
             hudCtx.fillRect(x, y, w, h);
             
-            // 2. Рамка контур (Чистый белый)
+            // --- КОНТУР РАМКИ (БЕЛЫЙ) ---
             hudCtx.strokeStyle = "#ffffff";
-            hudCtx.lineWidth = 1;
+            hudCtx.lineWidth = 1.5;
             hudCtx.strokeRect(x, y, w, h);
 
-            // 3. Данные (Анимированный печатный текст под рамкой)
-            const infoText = `UNIT_${index}: ${p.class.toUpperCase()} | LOCK: ${Math.round(p.score*100)}%`;
+            // --- ДАННЫЕ ОБЪЕКТА (ПЕЧАТНЫЙ ТЕКСТ) ---
+            const infoText = `OBJ_${index}: ${p.class.toUpperCase()} | ACC: ${(p.score * 100).toFixed(0)}%`;
             hudCtx.fillStyle = "#ffffff";
             hudCtx.font = "10px Share Tech Mono";
             
-            // Расчет "печати" текста
-            const charCount = Math.floor((Date.now() / 35) % 80);
-            hudCtx.fillText(infoText.substring(0, charCount), x, y + h + 15);
+            // Имитация печати текста по времени
+            const chars = Math.floor((Date.now() / 30) % 100);
+            hudCtx.fillText(infoText.substring(0, chars), x, y + h + 16);
             
-            // Декор под текстом
+            // Декоративная линия под текстом
             hudCtx.beginPath();
-            hudCtx.moveTo(x, y + h + 5);
-            hudCtx.lineTo(x + 15, y + h + 5);
+            hudCtx.moveTo(x, y + h + 6);
+            hudCtx.lineTo(x + 30, y + h + 6);
             hudCtx.stroke();
         });
 
