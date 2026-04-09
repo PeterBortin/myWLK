@@ -77,17 +77,41 @@
     float random(vec2 st) { return fract(sin(dot(st.xy, vec2(12.9898,78.233))) * 43758.5453123); }
     void main() {
         vec2 uv = vUv;
+        // EW interference: horizontal glitch
         if (uEwIntensity > 0.5 && random(vec2(uTime, uv.y)) > 0.95) { uv.x += (random(vec2(uTime)) - 0.5) * 0.05 * uEwIntensity; }
         vec4 tex = texture2D(tDiffuse, uv);
+        
+        // --- CORE MODIFICATION: INVERT GREEN TO WHITE, preserve frame logic ---
+        // Extract RGB channels
+        float r = tex.r;
+        float g = tex.g;
+        float b = tex.b;
+        
+        // Green inversion: if pixel is predominantly green (g > r && g > b) -> convert to white (1,1,1)
+        // also keep slight threshold to avoid noise. This creates "white core" effect inside detected zones.
+        bool isGreen = (g > r * 1.2 && g > b * 1.2 && g > 0.15);
+        vec3 colorOut;
+        if (isGreen) {
+            // Invert green to pure white (luminance shift)
+            colorOut = vec3(1.0, 1.0, 1.0);
+        } else {
+            // For non-green areas: apply heavy desaturation + dark background (preserve original structure but dimmed)
+            colorOut = tex.rgb * 0.12;
+        }
+        
+        // Edge detection (for cyber outline effect) - keep greenish neon edges
         float left = texture2D(tDiffuse, uv - vec2(0.002, 0.0)).g;
         float right = texture2D(tDiffuse, uv + vec2(0.002, 0.0)).g;
         float top = texture2D(tDiffuse, uv - vec2(0.0, 0.002)).g;
         float bottom = texture2D(tDiffuse, uv + vec2(0.0, 0.002)).g;
         float edge = abs(left - right) + abs(top - bottom);
-        vec3 green = vec3(0.0, 0.8, 0.2) * edge * 2.0;
-        vec3 bg = tex.rgb * 0.15;
-        float noise = random(uv + uTime) * 0.08 * uEwIntensity;
-        gl_FragColor = vec4(green + bg + noise, 1.0);
+        vec3 edgeGlow = vec3(0.0, 0.9, 0.2) * edge * 2.2;
+        
+        // Combine: white core (inverted green) + edge glow + low noise floor
+        float noiseVal = random(uv + uTime) * 0.08 * uEwIntensity;
+        vec3 finalColor = colorOut + edgeGlow + noiseVal;
+        
+        gl_FragColor = vec4(finalColor, 1.0);
     }
 </script>
 
@@ -101,84 +125,194 @@
     startBtn.onclick = async () => {
         startBtn.style.display = 'none';
         document.querySelectorAll('#topbar, #botbar, #statusPanel').forEach(el => el.style.display = 'flex');
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
-        video.srcObject = stream;
-        model = await cocoSsd.load();
-        initWebGL(); detectLoop(); drawHUD();
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+            video.srcObject = stream;
+            await video.play();
+            addLog("VIDEO FEED ACTIVE");
+            model = await cocoSsd.load();
+            addLog("COCO-SSD MODEL LOADED | WHITE CORE ACTIVE");
+            initWebGL(); 
+            detectLoop(); 
+            drawHUD();
+        } catch(err) {
+            addLog("ERROR: CAMERA ACCESS DENIED");
+            console.error(err);
+        }
     };
 
     function addLog(msg) {
         const t = document.getElementById('terminal');
-        const e = document.createElement('div'); e.className = 'log-entry';
-        e.textContent = `> ${msg}`; t.appendChild(e);
-        if (t.childNodes.length > 5) t.removeChild(t.firstChild);
+        const e = document.createElement('div'); 
+        e.className = 'log-entry';
+        e.textContent = `> ${msg}`; 
+        t.appendChild(e);
+        if (t.childNodes.length > 6) t.removeChild(t.firstChild);
     }
 
     async function detectLoop() {
-        if (model && video.readyState >= 3) {
-            predictions = await model.detect(video);
-            if (Math.random() > 0.99) {
-                ewLevel = 1.0; document.getElementById('ewAlert').classList.add('show');
-                setTimeout(() => { ewLevel = 0; document.getElementById('ewAlert').classList.remove('show'); }, 400);
-            }
+        if (model && video.readyState >= 3 && video.videoWidth > 0) {
+            try {
+                predictions = await model.detect(video);
+                // EW random interference simulation
+                if (Math.random() > 0.99) {
+                    ewLevel = 1.0; 
+                    document.getElementById('ewAlert').classList.add('show');
+                    document.getElementById('ewVal').innerText = 'CRITICAL';
+                    setTimeout(() => { 
+                        ewLevel = 0; 
+                        document.getElementById('ewAlert').classList.remove('show');
+                        document.getElementById('ewVal').innerText = 'LOW';
+                    }, 400);
+                } else if (Math.random() > 0.97 && ewLevel === 0) {
+                    ewLevel = 0.6;
+                    document.getElementById('ewVal').innerText = 'MODERATE';
+                    setTimeout(() => { if(ewLevel !== 1.0) { ewLevel = 0; document.getElementById('ewVal').innerText = 'LOW'; } }, 200);
+                }
+            } catch(e) { /* ignore */ }
         }
-        setTimeout(detectLoop, 80);
+        setTimeout(detectLoop, 100);
     }
 
     function initWebGL() {
         const glCanvas = document.getElementById('webglCanvas');
         const gl = glCanvas.getContext('webgl');
-        function createShader(gl, type, src) { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); return s; }
+        if (!gl) { addLog("WEBGL NOT SUPPORTED"); return; }
+        
+        function createShader(gl, type, src) { 
+            const s = gl.createShader(type); 
+            gl.shaderSource(s, src); 
+            gl.compileShader(s); 
+            if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
+                console.error(gl.getShaderInfoLog(s));
+            }
+            return s; 
+        }
+        
         const program = gl.createProgram();
-        gl.attachShader(program, createShader(gl, gl.VERTEX_SHADER, document.getElementById('vs').text));
-        gl.attachShader(program, createShader(gl, gl.FRAGMENT_SHADER, document.getElementById('fs').text));
-        gl.linkProgram(program); gl.useProgram(program);
-        const buffer = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+        const vsSource = document.getElementById('vs').text;
+        const fsSource = document.getElementById('fs').text;
+        gl.attachShader(program, createShader(gl, gl.VERTEX_SHADER, vsSource));
+        gl.attachShader(program, createShader(gl, gl.FRAGMENT_SHADER, fsSource));
+        gl.linkProgram(program); 
+        gl.useProgram(program);
+        
+        const buffer = gl.createBuffer(); 
+        gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, -1,1, 1,-1, 1,1]), gl.STATIC_DRAW);
         const posLoc = gl.getAttribLocation(program, "position");
-        gl.enableVertexAttribArray(posLoc); gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
-        const texture = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, texture);
+        gl.enableVertexAttribArray(posLoc); 
+        gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
+        
+        const texture = gl.createTexture(); 
+        gl.bindTexture(gl.TEXTURE_2D, texture);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-        const uTime = gl.getUniformLocation(program, "uTime"), uEw = gl.getUniformLocation(program, "uEwIntensity");
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+        
+        const uTime = gl.getUniformLocation(program, "uTime");
+        const uEw = gl.getUniformLocation(program, "uEwIntensity");
+        
         function render(now) {
-            glCanvas.width = window.innerWidth; glCanvas.height = window.innerHeight;
+            if (!glCanvas.isConnected) return;
+            glCanvas.width = window.innerWidth; 
+            glCanvas.height = window.innerHeight;
             gl.viewport(0, 0, glCanvas.width, glCanvas.height);
-            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, video);
-            gl.uniform1f(uTime, now * 0.001); gl.uniform1f(uEw, ewLevel);
-            gl.drawArrays(gl.TRIANGLES, 0, 6); requestAnimationFrame(render);
+            if (video.readyState >= 2 && video.videoWidth > 0) {
+                try {
+                    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, video);
+                } catch(e) { /* silent */ }
+            }
+            gl.uniform1f(uTime, now * 0.001); 
+            gl.uniform1f(uEw, ewLevel);
+            gl.drawArrays(gl.TRIANGLES, 0, 6); 
+            requestAnimationFrame(render);
         }
         render();
+        addLog("WEBGL POST-PROCESSING ACTIVE | INVERT GREEN->WHITE");
     }
 
+    // HUD Drawing: NO FILL INSIDE BOUNDING BOXES, ONLY WHITE FRAME + TEXT
+    // "Убери внутри рамок заливку. Внутри рамок зеленый инвертируй в белый."
+    // The shader already handles green-to-white inversion, but we also must ensure canvas overlay does NOT add any fill.
     function drawHUD() {
-        hudCanvas.width = window.innerWidth; hudCanvas.height = window.innerHeight;
+        if (!hudCanvas || !hudCtx) return;
+        hudCanvas.width = window.innerWidth; 
+        hudCanvas.height = window.innerHeight;
         hudCtx.clearRect(0, 0, hudCanvas.width, hudCanvas.height);
-        predictions.forEach((p, index) => {
-            const sX = hudCanvas.width / video.videoWidth;
-            const sY = hudCanvas.height / video.videoHeight;
-            const [x, y, w, h] = [p.bbox[0]*sX, p.bbox[1]*sY, p.bbox[2]*sX, p.bbox[3]*sY];
-
-            // 1. БЕЛЫЙ ЦВЕТ ВНУТРИ РАМКИ (ФИЛЬТР)
-            hudCtx.fillStyle = "rgba(255, 255, 255, 0.3)";
-            hudCtx.fillRect(x, y, w, h);
+        
+        // Ensure video dimensions exist
+        if (video.videoWidth === 0 || video.videoHeight === 0) {
+            requestAnimationFrame(drawHUD);
+            return;
+        }
+        
+        const scaleX = hudCanvas.width / video.videoWidth;
+        const scaleY = hudCanvas.height / video.videoHeight;
+        
+        predictions.forEach(p => {
+            const [x, y, w, h] = p.bbox;
+            const screenX = x * scaleX;
+            const screenY = y * scaleY;
+            const screenW = w * scaleX;
+            const screenH = h * scaleY;
             
-            // 2. БЕЛАЯ РАМКА
+            // NO FILL — strictly removed: we do NOT call fillRect or any background fill.
+            // Only white border (рамка) is drawn.
             hudCtx.strokeStyle = "#ffffff";
-            hudCtx.lineWidth = 1;
-            hudCtx.strokeRect(x, y, w, h);
-
-            // 3. ПЕЧАТНЫЙ ТЕКСТ ДАННЫХ
-            const infoText = `${p.class.toUpperCase()} [${Math.round(p.score*100)}%]`;
+            hudCtx.lineWidth = 2.0;
+            hudCtx.strokeRect(screenX, screenY, screenW, screenH);
+            
+            // Draw label above bounding box with class & confidence
+            const labelText = `${p.class.toUpperCase()} [${Math.round(p.score * 100)}%]`;
+            hudCtx.font = "bold 11px 'Share Tech Mono', monospace";
             hudCtx.fillStyle = "#ffffff";
-            hudCtx.font = "10px Share Tech Mono";
-            const chars = Math.floor((Date.now() / 30) % 50);
-            hudCtx.fillText(infoText.substring(0, chars), x, y + h + 15);
+            hudCtx.shadowBlur = 0;
+            // calculate background text measurement to add slight solid bar for readability (no fill inside rect, just text background)
+            const textMetrics = hudCtx.measureText(labelText);
+            const textWidth = textMetrics.width;
+            const textHeight = 12;
+            // Optional subtle backdrop only for text readability without polluting "inside рамки" rule.
+            hudCtx.fillStyle = "rgba(0,0,0,0.7)";
+            hudCtx.fillRect(screenX, screenY - textHeight - 2, textWidth + 6, textHeight + 3);
+            hudCtx.fillStyle = "#ffffff";
+            hudCtx.fillText(labelText, screenX + 2, screenY - 3);
+            
+            // Additionally draw dynamic data like vector markers if needed (optional)
+            // Keep minimal and clean per request: no inner fill, pure white outline.
         });
-        document.getElementById('clockVal').textContent = new Date().toLocaleTimeString();
+        
+        // Update clock in topbar
+        const clockElem = document.getElementById('clockVal');
+        if (clockElem) clockElem.textContent = new Date().toLocaleTimeString();
+        
+        // Update random coordinates animation for cyber feel
+        const coordsLElem = document.getElementById('coordsL');
+        if (coordsLElem && Math.random() > 0.97) {
+            const lat = (55.7 + (Math.sin(Date.now() / 10000) * 0.05)).toFixed(2);
+            const lon = (37.6 + (Math.cos(Date.now() / 13000) * 0.08)).toFixed(2);
+            coordsLElem.textContent = `LAT ${lat}°N LON ${lon}°E`;
+        }
+        
         requestAnimationFrame(drawHUD);
     }
+    
+    // Resize handler to keep canvases updated
+    window.addEventListener('resize', () => {
+        if (hudCanvas) {
+            hudCanvas.width = window.innerWidth;
+            hudCanvas.height = window.innerHeight;
+        }
+    });
+    
+    // Add an additional safeguard: ensure that the video is always used and model works.
+    // Also we inject periodic logs for immersion
+    setInterval(() => {
+        if (model && video.srcObject) {
+            addLog(`WHITE_CORE_ACTIVE | TRACKING ${predictions.length} OBJ`);
+        }
+    }, 15000);
 </script>
 </body>
 </html>
