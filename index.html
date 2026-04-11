@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
@@ -7,97 +8,299 @@
     <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@300;500;700&display=swap" rel="stylesheet">
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-        :root { --red: #ff2020; --green: #00ff41; --cyan: #00ffff; --mono: 'Share Tech Mono', monospace; --sans: 'Rajdhani', sans-serif; }
+        :root {
+            --red: #ff2020; --green: #00ff41; --cyan: #00ffff; --blue: #00aaff;
+            --blue-bright: #44ccff; --blue-glow: rgba(0,170,255,0.6);
+            --mono: 'Share Tech Mono', monospace; --sans: 'Rajdhani', sans-serif;
+        }
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #000; font-family: var(--mono); user-select: none; cursor: crosshair; }
         #container { position: relative; width: 100vw; height: 100vh; }
         video { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; display: none; z-index: 0; }
         video.mode-target { display: block; filter: brightness(0.45) contrast(1.3) saturate(0.1) hue-rotate(180deg); }
+        video.mode-blue { display: block; filter: brightness(0.5) contrast(1.4) saturate(0.15) hue-rotate(200deg) sepia(0.3); }
         #webglCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; display: none; }
         #hudCanvas   { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 5; pointer-events: none; display: none; }
         #tapCanvas   { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 6; cursor: pointer; display: none; }
         #tgtCanvas   { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 7; pointer-events: none; display: none; }
+        #blueCanvas  { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 7; pointer-events: none; display: none; }
         #scanlines    { position: absolute; inset: 0; pointer-events: none; z-index: 8; display: none; background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.12) 2px, rgba(0,0,0,0.12) 3px); opacity: 0.4; }
         #scanlinesTgt { position: absolute; inset: 0; pointer-events: none; z-index: 8; display: none; background: repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,0,0,0.18) 3px, rgba(0,0,0,0.18) 4px); animation: scanScroll 8s linear infinite; }
+        #scanlinesBlue { position: absolute; inset: 0; pointer-events: none; z-index: 8; display: none; background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,40,80,0.25) 2px, rgba(0,40,80,0.25) 3px); animation: scanScrollBlue 6s linear infinite; }
         @keyframes scanScroll { from{background-position:0 0} to{background-position:0 100px} }
+        @keyframes scanScrollBlue { from{background-position:0 0} to{background-position:0 80px} }
         #vignette { position: absolute; inset: 0; pointer-events: none; z-index: 4; display: none; background: radial-gradient(ellipse 80% 80% at 50% 50%, transparent 40%, rgba(0,0,0,0.8) 100%); }
-        #modeToggle { position: absolute; top: 12px; right: 12px; z-index: 50; display: none; background: rgba(0,0,0,0.75); border: 1px solid rgba(255,255,255,0.2); color: rgba(255,255,255,0.7); font-family: var(--sans); font-size: 9px; font-weight: 700; letter-spacing: 3px; text-transform: uppercase; padding: 8px 14px; cursor: pointer; backdrop-filter: blur(6px); transition: all 0.25s; }
-        #modeToggle:hover { border-color: rgba(255,255,255,0.55); color: #fff; background: rgba(0,0,0,0.9); }
-        #modeToggle.mode-wc  { border-color: rgba(0,255,65,0.5);  color: var(--green); }
-        #modeToggle.mode-tgt { border-color: rgba(255,32,32,0.5); color: var(--red); }
-        #startBtn { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); background: none; border: none; color: #fff; font-family: var(--sans); font-size: 11px; font-weight: 700; letter-spacing: 5px; text-transform: uppercase; cursor: pointer; z-index: 100; outline: none; padding: 0; }
-        #startBtn .btn-inner { display: flex; flex-direction: column; align-items: center; gap: 20px; }
-        #startBtn .btn-ring  { width: 80px; height: 80px; position: relative; display: flex; align-items: center; justify-content: center; }
-        .ring-svg  { position: absolute; inset: 0;   animation: spinRing 4s linear infinite; }
-        .ring-svg2 { position: absolute; inset: 6px; animation: spinRing 7s linear infinite reverse; }
-        @keyframes spinRing { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
-        #startBtn .btn-text { letter-spacing: 6px; opacity: 0.7; }
-        #startBtn:hover .btn-text { opacity: 1; }
-        #startBtn:hover .ring-svg  { animation-duration: 1.5s; }
-        #revealFlash  { position: absolute; inset: 0; background: rgba(255,255,255,0); pointer-events: none; z-index: 20; transition: background 0.1s; }
-        #revealFlash.flash { background: rgba(255,255,255,0.18); }
-        #flashOverlay { position: absolute; inset: 0; z-index: 50; background: rgba(255,255,255,0); pointer-events: none; }
-        #flashOverlay.flash { animation: scrFlash 0.25s ease forwards; }
-        @keyframes scrFlash { 0%{background:rgba(255,255,255,0.2)} 100%{background:rgba(255,255,255,0)} }
-        #wcUI { display: none; }
-        #terminal { position: absolute; bottom: 55px; left: 15px; width: 340px; z-index: 15; pointer-events: none; background: rgba(0,0,0,0.55); padding: 8px 12px; border-left: 3px solid var(--green); border-radius: 0 4px 4px 0; backdrop-filter: blur(2px); }
-        .log-entry-wc { font-size: 10px; color: var(--green); opacity: 0.9; margin-bottom: 5px; font-family: var(--mono); text-shadow: 0 0 2px #00ff41; }
-        #botbarWC { position: absolute; left: 0; right: 0; bottom: 0; height: 38px; display: flex; align-items: center; justify-content: space-between; padding: 0 18px; z-index: 15; color: rgba(255,255,255,0.8); font-size: 11px; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); font-family: var(--mono); letter-spacing: 1px; border-top: 2px solid var(--green); }
-        #tgtUI { display: none; }
-        #botbarTGT { position: absolute; bottom: 0; left: 0; right: 0; height: 36px; background: linear-gradient(to top, rgba(0,0,0,0.7), transparent); display: flex; align-items: center; justify-content: space-between; padding: 0 18px; z-index: 15; border-top: 1px solid rgba(255,255,255,0.07); }
-        .coords { font-size: 10px; color: rgba(255,255,255,0.4); letter-spacing: 1.5px; }
-        #terminalTGT { position: absolute; bottom: 44px; left: 15px; width: 280px; max-height: 180px; overflow: hidden; z-index: 15; pointer-events: none; }
-        .log-entry { font-size: 10px; letter-spacing: 1.5px; line-height: 1.8; text-transform: uppercase; color: rgba(255,255,255,0.5); display: flex; gap: 8px; align-items: baseline; animation: fadeIn 0.3s ease; }
-        .log-entry.threat { color: var(--red); }
-        .log-entry.info   { color: rgba(255,255,255,0.6); }
-        @keyframes fadeIn { from{opacity:0;transform:translateY(6px)} to{opacity:1} }
-        .log-ts     { color: rgba(255,255,255,0.2); flex-shrink: 0; }
-        .log-prefix { color: rgba(255,255,255,0.25); }
-        #cursor { display: inline-block; width: 7px; height: 12px; background: rgba(255,255,255,0.5); animation: blink 0.8s steps(1) infinite; vertical-align: middle; margin-left: 2px; }
-        @keyframes blink { 50%{opacity:0} }
-        #statusPanel { position: absolute; top: 15px; right: 15px; width: 185px; z-index: 15; display: flex; flex-direction: column; gap: 5px; }
-        .sp-row { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 4px; }
-        .sp-key { font-family: var(--sans); font-size: 9px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: rgba(255,255,255,0.3); }
-        .sp-val { font-family: var(--mono); font-size: 10px; color: rgba(255,255,255,0.65); letter-spacing: 1px; }
-        .sp-val.active { color: var(--red); text-shadow: 0 0 8px var(--red); }
-        .bar-wrap { width: 80px; height: 3px; background: rgba(255,255,255,0.1); }
-        .bar-fill  { height: 100%; background: rgba(255,255,255,0.5); transition: width 0.3s; }
-        .bar-fill.danger { background: var(--red); box-shadow: 0 0 6px var(--red); }
-        #ewAlertTGT { position: absolute; top: 15px; right: 210px; font-family: var(--sans); font-size: 9px; font-weight: 700; letter-spacing: 3px; color: var(--red); opacity: 0; transition: opacity 0.2s; z-index: 15; text-transform: uppercase; }
-        #ewAlertTGT.show { opacity: 1; }
-        #threatBox { position: absolute; top: 50%; right: 15px; transform: translateY(-50%); z-index: 15; width: 170px; opacity: 0; transition: opacity 0.4s; }
-        #threatBox.show { opacity: 1; }
-        .tb-header { font-family: var(--sans); font-size: 9px; font-weight: 700; letter-spacing: 3px; color: var(--red); border-bottom: 1px solid rgba(255,32,32,0.3); padding-bottom: 6px; margin-bottom: 8px; text-transform: uppercase; }
-        .tbi { font-size: 10px; color: rgba(255,255,255,0.65); letter-spacing: 1px; line-height: 2; }
-        .tbi-key { color: rgba(255,255,255,0.3); font-size: 9px; }
-        #captureCard { position: absolute; top: 14px; left: 14px; z-index: 20; display: flex; flex-direction: row; opacity: 0; pointer-events: none; transition: opacity 0.3s ease; filter: drop-shadow(0 0 8px rgba(255,32,32,0.35)); }
-        #captureCard.show { opacity: 1; pointer-events: auto; }
-        #portraitWrap { position: relative; width: 130px; height: 130px; flex-shrink: 0; background: #000; border: 1px solid rgba(255,32,32,0.5); overflow: hidden; }
-        #portraitCanvas { width: 100%; height: 100%; display: block; filter: brightness(1.1) contrast(1.25) saturate(0.12) hue-rotate(180deg); }
-        .pcorner { position: absolute; width: 9px; height: 9px; border-color: var(--red); border-style: solid; z-index: 2; }
-        .pcorner.tl { top:3px; left:3px; border-width:1.5px 0 0 1.5px; }
-        .pcorner.tr { top:3px; right:3px; border-width:1.5px 1.5px 0 0; }
-        .pcorner.bl { bottom:3px; left:3px; border-width:0 0 1.5px 1.5px; }
-        .pcorner.br { bottom:3px; right:3px; border-width:0 1.5px 1.5px 0; }
-        #pScanlines { position: absolute; inset: 0; pointer-events: none; z-index: 3; background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.22) 2px, rgba(0,0,0,0.22) 3px); }
-        #pCross { position: absolute; inset: 0; z-index: 4; pointer-events: none; display: flex; align-items: center; justify-content: center; }
-        #pCross::before { content: ''; width: 16px; height: 16px; border: 1px solid rgba(255,32,32,0.5); border-radius: 50%; }
-        #pStamp { position: absolute; bottom: 4px; left: 4px; right: 4px; z-index: 5; font-size: 7px; font-family: var(--mono); color: rgba(255,32,32,0.65); letter-spacing: 0.8px; display: flex; justify-content: space-between; }
-        #capturedFlash { position: absolute; inset: 0; z-index: 6; display: flex; align-items: center; justify-content: center; font-family: var(--sans); font-size: 10px; font-weight: 700; letter-spacing: 4px; color: var(--red); text-transform: uppercase; opacity: 0; pointer-events: none; }
-        #capturedFlash.flash { animation: capFlash 0.9s ease forwards; }
-        @keyframes capFlash { 0%{opacity:1} 60%{opacity:0.7} 100%{opacity:0} }
-        #captureMeta { width: 158px; background: rgba(0,0,0,0.82); border: 1px solid rgba(255,32,32,0.25); border-left: none; padding: 7px 9px; display: flex; flex-direction: column; }
-        .cm-header { font-family: var(--sans); font-size: 8px; font-weight: 700; letter-spacing: 3px; color: var(--red); border-bottom: 1px solid rgba(255,32,32,0.3); padding-bottom: 5px; margin-bottom: 5px; text-transform: uppercase; display: flex; justify-content: space-between; align-items: center; }
-        .cm-blink { width: 5px; height: 5px; border-radius: 50%; background: var(--red); animation: blink 0.6s steps(1) infinite; }
-        .cm-row { display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1px solid rgba(255,255,255,0.04); padding: 2.5px 0; }
-        .cm-key { font-family: var(--sans); font-size: 8px; font-weight: 700; letter-spacing: 1.8px; color: rgba(255,255,255,0.25); text-transform: uppercase; flex-shrink: 0; }
-        .cm-val { font-family: var(--mono); font-size: 9px; color: rgba(255,255,255,0.65); letter-spacing: 0.8px; text-align: right; }
-        .cm-val.red { color: var(--red); text-shadow: 0 0 5px var(--red); }
-        #tapHint { position: absolute; bottom: 120px; left: 50%; transform: translateX(-50%); font-family: var(--sans); font-size: 10px; font-weight: 700; letter-spacing: 4px; text-transform: uppercase; color: rgba(255,255,255,0.32); z-index: 15; pointer-events: none; opacity: 0; transition: opacity 0.4s; white-space: nowrap; animation: hintPulse 2s ease-in-out infinite; }
-        #tapHint.show { opacity: 1; }
-        @keyframes hintPulse { 0%,100%{opacity:0.32} 50%{opacity:0.65} }
-        #tapHint::before { content: '[ '; color: var(--red); }
-        #tapHint::after  { content: ' ]'; color: var(--red); }
-    </style>
+        #vignetteBlue { position: absolute; inset: 0; pointer-events: none; z-index: 4; display: none; background: radial-gradient(ellipse 80% 80% at 50% 50%, transparent 30%, rgba(0,5,20,0.85) 100%); }
+
+```
+    /* ══ MODE TRANSITION OVERLAY ══ */
+    #modeTransition {
+        position: absolute; inset: 0; z-index: 200; pointer-events: none;
+        opacity: 0;
+    }
+    #modeTransition.active { animation: modeFlash 0.6s ease forwards; }
+    @keyframes modeFlash {
+        0%  { opacity: 0; }
+        15% { opacity: 1; }
+        40% { opacity: 0.7; }
+        100% { opacity: 0; }
+    }
+    #modeTransition.to-wc  { background: radial-gradient(circle at 50% 50%, rgba(0,255,65,0.35) 0%, rgba(0,30,0,0.6) 60%, transparent 100%); }
+    #modeTransition.to-tgt { background: radial-gradient(circle at 50% 50%, rgba(255,20,20,0.35) 0%, rgba(30,0,0,0.6) 60%, transparent 100%); }
+    #modeTransition.to-blue{ background: radial-gradient(circle at 50% 50%, rgba(0,170,255,0.4) 0%, rgba(0,10,40,0.7) 60%, transparent 100%); }
+
+    /* Scan line wipe effect */
+    #modeScanWipe {
+        position: absolute; inset: 0; z-index: 199; pointer-events: none;
+        opacity: 0; overflow: hidden;
+    }
+    #modeScanWipe.active { animation: wipeAnim 0.55s ease forwards; }
+    #modeScanWipe::before {
+        content: ''; position: absolute; left: 0; right: 0;
+        height: 3px; top: -3px;
+        background: currentColor;
+        box-shadow: 0 0 20px 4px currentColor, 0 0 60px 10px currentColor;
+        animation: none;
+    }
+    #modeScanWipe.active::before { animation: scanWipeLine 0.55s ease forwards; }
+    @keyframes wipeAnim { 0%{opacity:1} 100%{opacity:0} }
+    @keyframes scanWipeLine { 0%{top:-3px} 100%{top:100vh} }
+    #modeScanWipe.to-wc  { color: var(--green); }
+    #modeScanWipe.to-tgt { color: var(--red); }
+    #modeScanWipe.to-blue { color: var(--blue); }
+
+    /* ══ MODE BUTTON (3 states) ══ */
+    #modeToggle {
+        position: absolute; top: 12px; right: 12px; z-index: 50; display: none;
+        background: rgba(0,0,0,0.75); border: 1px solid rgba(255,255,255,0.2);
+        color: rgba(255,255,255,0.7); font-family: var(--sans); font-size: 9px;
+        font-weight: 700; letter-spacing: 3px; text-transform: uppercase;
+        padding: 0; cursor: pointer; backdrop-filter: blur(6px);
+        transition: all 0.3s; overflow: hidden; width: 130px; height: 34px;
+    }
+    .mode-btn-inner {
+        display: flex; align-items: center; justify-content: center;
+        gap: 7px; width: 100%; height: 100%; padding: 0 12px;
+        transition: all 0.3s;
+    }
+    .mode-dot {
+        width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
+        transition: all 0.3s;
+    }
+    #modeToggle:hover { border-color: rgba(255,255,255,0.55); color: #fff; background: rgba(0,0,0,0.9); }
+    #modeToggle.mode-wc  { border-color: rgba(0,255,65,0.5);  color: var(--green); }
+    #modeToggle.mode-wc .mode-dot  { background: var(--green); box-shadow: 0 0 6px var(--green); }
+    #modeToggle.mode-tgt { border-color: rgba(255,32,32,0.5); color: var(--red); }
+    #modeToggle.mode-tgt .mode-dot { background: var(--red);   box-shadow: 0 0 6px var(--red); }
+    #modeToggle.mode-blue { border-color: rgba(0,170,255,0.5); color: var(--blue-bright); }
+    #modeToggle.mode-blue .mode-dot { background: var(--blue-bright); box-shadow: 0 0 6px var(--blue-bright); }
+
+    /* Mode indicator dots row */
+    #modeDots {
+        position: absolute; top: 50px; right: 12px; z-index: 50;
+        display: none; flex-direction: row; gap: 5px; align-items: center;
+    }
+    .md-dot {
+        width: 5px; height: 5px; border-radius: 50%;
+        background: rgba(255,255,255,0.2); transition: all 0.3s; cursor: default;
+    }
+    .md-dot.active-wc  { background: var(--green);       box-shadow: 0 0 6px var(--green); }
+    .md-dot.active-tgt { background: var(--red);         box-shadow: 0 0 6px var(--red); }
+    .md-dot.active-blue { background: var(--blue-bright); box-shadow: 0 0 6px var(--blue-bright); }
+
+    #startBtn { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); background: none; border: none; color: #fff; font-family: var(--sans); font-size: 11px; font-weight: 700; letter-spacing: 5px; text-transform: uppercase; cursor: pointer; z-index: 100; outline: none; padding: 0; }
+    #startBtn .btn-inner { display: flex; flex-direction: column; align-items: center; gap: 20px; }
+    #startBtn .btn-ring  { width: 80px; height: 80px; position: relative; display: flex; align-items: center; justify-content: center; }
+    .ring-svg  { position: absolute; inset: 0;   animation: spinRing 4s linear infinite; }
+    .ring-svg2 { position: absolute; inset: 6px; animation: spinRing 7s linear infinite reverse; }
+    @keyframes spinRing { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+    #startBtn .btn-text { letter-spacing: 6px; opacity: 0.7; }
+    #startBtn:hover .btn-text { opacity: 1; }
+    #startBtn:hover .ring-svg  { animation-duration: 1.5s; }
+    #revealFlash  { position: absolute; inset: 0; background: rgba(255,255,255,0); pointer-events: none; z-index: 20; transition: background 0.1s; }
+    #revealFlash.flash { background: rgba(255,255,255,0.18); }
+    #flashOverlay { position: absolute; inset: 0; z-index: 50; background: rgba(255,255,255,0); pointer-events: none; }
+    #flashOverlay.flash { animation: scrFlash 0.25s ease forwards; }
+    @keyframes scrFlash { 0%{background:rgba(255,255,255,0.2)} 100%{background:rgba(255,255,255,0)} }
+
+    /* ══ WHITE CORE UI ══ */
+    #wcUI { display: none; }
+    #terminal { position: absolute; bottom: 55px; left: 15px; width: 340px; z-index: 15; pointer-events: none; background: rgba(0,0,0,0.55); padding: 8px 12px; border-left: 3px solid var(--green); border-radius: 0 4px 4px 0; backdrop-filter: blur(2px); }
+    .log-entry-wc { font-size: 10px; color: var(--green); opacity: 0.9; margin-bottom: 5px; font-family: var(--mono); text-shadow: 0 0 2px #00ff41; }
+    #botbarWC { position: absolute; left: 0; right: 0; bottom: 0; height: 38px; display: flex; align-items: center; justify-content: space-between; padding: 0 18px; z-index: 15; color: rgba(255,255,255,0.8); font-size: 11px; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); font-family: var(--mono); letter-spacing: 1px; border-top: 2px solid var(--green); }
+
+    /* ══ TARGET UI ══ */
+    #tgtUI { display: none; }
+    #botbarTGT { position: absolute; bottom: 0; left: 0; right: 0; height: 36px; background: linear-gradient(to top, rgba(0,0,0,0.7), transparent); display: flex; align-items: center; justify-content: space-between; padding: 0 18px; z-index: 15; border-top: 1px solid rgba(255,255,255,0.07); }
+    .coords { font-size: 10px; color: rgba(255,255,255,0.4); letter-spacing: 1.5px; }
+    #terminalTGT { position: absolute; bottom: 44px; left: 15px; width: 280px; max-height: 180px; overflow: hidden; z-index: 15; pointer-events: none; }
+    .log-entry { font-size: 10px; letter-spacing: 1.5px; line-height: 1.8; text-transform: uppercase; color: rgba(255,255,255,0.5); display: flex; gap: 8px; align-items: baseline; animation: fadeIn 0.3s ease; }
+    .log-entry.threat { color: var(--red); }
+    .log-entry.info   { color: rgba(255,255,255,0.6); }
+    @keyframes fadeIn { from{opacity:0;transform:translateY(6px)} to{opacity:1} }
+    .log-ts     { color: rgba(255,255,255,0.2); flex-shrink: 0; }
+    .log-prefix { color: rgba(255,255,255,0.25); }
+    #cursor { display: inline-block; width: 7px; height: 12px; background: rgba(255,255,255,0.5); animation: blink 0.8s steps(1) infinite; vertical-align: middle; margin-left: 2px; }
+    @keyframes blink { 50%{opacity:0} }
+    #statusPanel { position: absolute; top: 15px; right: 15px; width: 185px; z-index: 15; display: flex; flex-direction: column; gap: 5px; }
+    .sp-row { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 4px; }
+    .sp-key { font-family: var(--sans); font-size: 9px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: rgba(255,255,255,0.3); }
+    .sp-val { font-family: var(--mono); font-size: 10px; color: rgba(255,255,255,0.65); letter-spacing: 1px; }
+    .sp-val.active { color: var(--red); text-shadow: 0 0 8px var(--red); }
+    .bar-wrap { width: 80px; height: 3px; background: rgba(255,255,255,0.1); }
+    .bar-fill  { height: 100%; background: rgba(255,255,255,0.5); transition: width 0.3s; }
+    .bar-fill.danger { background: var(--red); box-shadow: 0 0 6px var(--red); }
+    #ewAlertTGT { position: absolute; top: 15px; right: 210px; font-family: var(--sans); font-size: 9px; font-weight: 700; letter-spacing: 3px; color: var(--red); opacity: 0; transition: opacity 0.2s; z-index: 15; text-transform: uppercase; }
+    #ewAlertTGT.show { opacity: 1; }
+    #threatBox { position: absolute; top: 50%; right: 15px; transform: translateY(-50%); z-index: 15; width: 170px; opacity: 0; transition: opacity 0.4s; }
+    #threatBox.show { opacity: 1; }
+    .tb-header { font-family: var(--sans); font-size: 9px; font-weight: 700; letter-spacing: 3px; color: var(--red); border-bottom: 1px solid rgba(255,32,32,0.3); padding-bottom: 6px; margin-bottom: 8px; text-transform: uppercase; }
+    .tbi { font-size: 10px; color: rgba(255,255,255,0.65); letter-spacing: 1px; line-height: 2; }
+    .tbi-key { color: rgba(255,255,255,0.3); font-size: 9px; }
+    #captureCard { position: absolute; top: 14px; left: 14px; z-index: 20; display: flex; flex-direction: row; opacity: 0; pointer-events: none; transition: opacity 0.3s ease; filter: drop-shadow(0 0 8px rgba(255,32,32,0.35)); }
+    #captureCard.show { opacity: 1; pointer-events: auto; }
+    #portraitWrap { position: relative; width: 130px; height: 130px; flex-shrink: 0; background: #000; border: 1px solid rgba(255,32,32,0.5); overflow: hidden; }
+    #portraitCanvas { width: 100%; height: 100%; display: block; filter: brightness(1.1) contrast(1.25) saturate(0.12) hue-rotate(180deg); }
+    .pcorner { position: absolute; width: 9px; height: 9px; border-color: var(--red); border-style: solid; z-index: 2; }
+    .pcorner.tl { top:3px; left:3px; border-width:1.5px 0 0 1.5px; }
+    .pcorner.tr { top:3px; right:3px; border-width:1.5px 1.5px 0 0; }
+    .pcorner.bl { bottom:3px; left:3px; border-width:0 0 1.5px 1.5px; }
+    .pcorner.br { bottom:3px; right:3px; border-width:0 1.5px 1.5px 0; }
+    #pScanlines { position: absolute; inset: 0; pointer-events: none; z-index: 3; background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.22) 2px, rgba(0,0,0,0.22) 3px); }
+    #pCross { position: absolute; inset: 0; z-index: 4; pointer-events: none; display: flex; align-items: center; justify-content: center; }
+    #pCross::before { content: ''; width: 16px; height: 16px; border: 1px solid rgba(255,32,32,0.5); border-radius: 50%; }
+    #pStamp { position: absolute; bottom: 4px; left: 4px; right: 4px; z-index: 5; font-size: 7px; font-family: var(--mono); color: rgba(255,32,32,0.65); letter-spacing: 0.8px; display: flex; justify-content: space-between; }
+    #capturedFlash { position: absolute; inset: 0; z-index: 6; display: flex; align-items: center; justify-content: center; font-family: var(--sans); font-size: 10px; font-weight: 700; letter-spacing: 4px; color: var(--red); text-transform: uppercase; opacity: 0; pointer-events: none; }
+    #capturedFlash.flash { animation: capFlash 0.9s ease forwards; }
+    @keyframes capFlash { 0%{opacity:1} 60%{opacity:0.7} 100%{opacity:0} }
+    #captureMeta { width: 158px; background: rgba(0,0,0,0.82); border: 1px solid rgba(255,32,32,0.25); border-left: none; padding: 7px 9px; display: flex; flex-direction: column; }
+    .cm-header { font-family: var(--sans); font-size: 8px; font-weight: 700; letter-spacing: 3px; color: var(--red); border-bottom: 1px solid rgba(255,32,32,0.3); padding-bottom: 5px; margin-bottom: 5px; text-transform: uppercase; display: flex; justify-content: space-between; align-items: center; }
+    .cm-blink { width: 5px; height: 5px; border-radius: 50%; background: var(--red); animation: blink 0.6s steps(1) infinite; }
+    .cm-row { display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1px solid rgba(255,255,255,0.04); padding: 2.5px 0; }
+    .cm-key { font-family: var(--sans); font-size: 8px; font-weight: 700; letter-spacing: 1.8px; color: rgba(255,255,255,0.25); text-transform: uppercase; flex-shrink: 0; }
+    .cm-val { font-family: var(--mono); font-size: 9px; color: rgba(255,255,255,0.65); letter-spacing: 0.8px; text-align: right; }
+    .cm-val.red { color: var(--red); text-shadow: 0 0 5px var(--red); }
+    #tapHint { position: absolute; bottom: 120px; left: 50%; transform: translateX(-50%); font-family: var(--sans); font-size: 10px; font-weight: 700; letter-spacing: 4px; text-transform: uppercase; color: rgba(255,255,255,0.32); z-index: 15; pointer-events: none; opacity: 0; transition: opacity 0.4s; white-space: nowrap; animation: hintPulse 2s ease-in-out infinite; }
+    #tapHint.show { opacity: 1; }
+    @keyframes hintPulse { 0%,100%{opacity:0.32} 50%{opacity:0.65} }
+    #tapHint::before { content: '[ '; color: var(--red); }
+    #tapHint::after  { content: ' ]'; color: var(--red); }
+
+    /* ══ BLUE MODE UI ══ */
+    #blueUI { display: none; }
+    #botbarBLUE {
+        position: absolute; left: 0; right: 0; bottom: 0; height: 40px;
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 0 18px; z-index: 15;
+        background: rgba(0,5,20,0.7); backdrop-filter: blur(6px);
+        font-family: var(--mono); font-size: 10px; letter-spacing: 1.5px;
+        border-top: 1px solid rgba(0,170,255,0.3);
+        color: rgba(0,170,255,0.7);
+    }
+    #blueTopPanel {
+        position: absolute; top: 0; left: 0; right: 0; height: 36px;
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 0 18px; z-index: 15;
+        background: rgba(0,5,20,0.7); backdrop-filter: blur(4px);
+        border-bottom: 1px solid rgba(0,170,255,0.2);
+        font-family: var(--mono); font-size: 9px; color: rgba(0,170,255,0.5);
+        letter-spacing: 2px;
+    }
+    #blueTopTitle {
+        font-family: var(--sans); font-size: 11px; font-weight: 700;
+        letter-spacing: 5px; color: var(--blue-bright);
+        text-shadow: 0 0 12px var(--blue);
+        animation: blueGlow 2s ease-in-out infinite;
+    }
+    @keyframes blueGlow {
+        0%,100%{ text-shadow: 0 0 8px var(--blue), 0 0 20px var(--blue); }
+        50%    { text-shadow: 0 0 14px var(--blue-bright), 0 0 35px var(--blue), 0 0 60px rgba(0,170,255,0.3); }
+    }
+    #blueTerminal {
+        position: absolute; bottom: 48px; left: 15px; width: 320px;
+        z-index: 15; pointer-events: none;
+        background: rgba(0,5,20,0.6); padding: 8px 12px;
+        border-left: 2px solid rgba(0,170,255,0.5);
+        border-radius: 0 4px 4px 0; backdrop-filter: blur(2px);
+    }
+    .log-entry-blue {
+        font-size: 10px; color: var(--blue-bright); opacity: 0.9;
+        margin-bottom: 4px; font-family: var(--mono);
+        text-shadow: 0 0 4px var(--blue);
+        animation: fadeInBlue 0.3s ease;
+    }
+    @keyframes fadeInBlue { from{opacity:0;transform:translateX(-8px)} to{opacity:0.9} }
+    #blueSpectrumWrap {
+        position: absolute; top: 50%; right: 18px; transform: translateY(-50%);
+        z-index: 15; width: 180px;
+        background: rgba(0,5,20,0.75); border: 1px solid rgba(0,170,255,0.2);
+        padding: 10px; backdrop-filter: blur(4px);
+    }
+    .bsp-title {
+        font-family: var(--sans); font-size: 8px; font-weight: 700;
+        letter-spacing: 3px; color: rgba(0,170,255,0.5);
+        border-bottom: 1px solid rgba(0,170,255,0.15);
+        padding-bottom: 5px; margin-bottom: 8px; text-transform: uppercase;
+    }
+    .bsp-row { display: flex; align-items: center; gap: 6px; margin-bottom: 5px; }
+    .bsp-label { font-size: 8px; color: rgba(0,170,255,0.4); letter-spacing: 1px; width: 40px; flex-shrink: 0; }
+    .bsp-bar-bg { flex: 1; height: 4px; background: rgba(0,170,255,0.1); border-radius: 2px; overflow: hidden; }
+    .bsp-bar-fill { height: 100%; background: linear-gradient(to right, rgba(0,170,255,0.4), var(--blue-bright)); border-radius: 2px; transition: width 0.4s ease; box-shadow: 0 0 4px var(--blue); }
+    .bsp-val { font-size: 9px; color: var(--blue-bright); width: 32px; text-align: right; }
+    #blueWaveCanvas {
+        position: absolute; bottom: 42px; left: 50%; transform: translateX(-50%);
+        z-index: 15; pointer-events: none; opacity: 0.7;
+    }
+    #bluePingDot {
+        position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+        z-index: 14; pointer-events: none;
+    }
+    .ping-ring {
+        position: absolute; border: 1px solid rgba(0,170,255,0.5);
+        border-radius: 50%; animation: pingExpand 3s ease-out infinite;
+        transform: translate(-50%,-50%) scale(0); top: 0; left: 0;
+    }
+    .ping-ring:nth-child(1) { width: 80px; height: 80px; animation-delay: 0s; }
+    .ping-ring:nth-child(2) { width: 140px; height: 140px; animation-delay: 0.8s; }
+    .ping-ring:nth-child(3) { width: 200px; height: 200px; animation-delay: 1.6s; }
+    @keyframes pingExpand {
+        0%   { transform: translate(-50%,-50%) scale(0); opacity: 0.8; }
+        100% { transform: translate(-50%,-50%) scale(1); opacity: 0; }
+    }
+    .ping-center {
+        width: 8px; height: 8px; border-radius: 50%;
+        background: var(--blue-bright);
+        box-shadow: 0 0 10px var(--blue), 0 0 20px var(--blue);
+        position: absolute; transform: translate(-50%,-50%); top: 0; left: 0;
+        animation: pingPulse 1.5s ease-in-out infinite;
+    }
+    @keyframes pingPulse {
+        0%,100%{ box-shadow: 0 0 10px var(--blue), 0 0 20px var(--blue); }
+        50%    { box-shadow: 0 0 20px var(--blue-bright), 0 0 40px var(--blue), 0 0 60px rgba(0,170,255,0.4); }
+    }
+    #blueDetectedList {
+        position: absolute; top: 44px; right: 18px; width: 180px;
+        z-index: 15; pointer-events: none;
+        display: flex; flex-direction: column; gap: 4px;
+    }
+    .blue-det-item {
+        background: rgba(0,5,20,0.8); border: 1px solid rgba(0,170,255,0.2);
+        border-left: 2px solid var(--blue); padding: 5px 8px;
+        font-family: var(--mono); font-size: 9px; color: rgba(0,170,255,0.8);
+        animation: blueItemIn 0.3s ease; letter-spacing: 1px;
+    }
+    @keyframes blueItemIn {
+        from{ opacity:0; transform: translateX(12px); }
+        to  { opacity:1; transform: translateX(0); }
+    }
+    .blue-det-item .bdi-class { color: var(--blue-bright); font-size: 10px; }
+    .blue-det-item .bdi-conf { color: rgba(0,170,255,0.45); font-size: 8px; }
+    #blueSonarCanvas {
+        position: absolute; bottom: 48px; right: 210px;
+        z-index: 15; pointer-events: none;
+    }
+</style>
+```
+
 </head>
 <body>
 <div id="container">
@@ -112,61 +315,125 @@
         </div>
     </button>
 
-    <video id="video" autoplay playsinline muted></video>
-    <canvas id="webglCanvas"></canvas>
-    <canvas id="hudCanvas"></canvas>
-    <canvas id="tapCanvas"></canvas>
-    <canvas id="tgtCanvas"></canvas>
-    <div id="scanlines"></div>
-    <div id="scanlinesTgt"></div>
-    <div id="vignette"></div>
-    <div id="revealFlash"></div>
-    <div id="flashOverlay"></div>
+```
+<video id="video" autoplay playsinline muted></video>
+<canvas id="webglCanvas"></canvas>
+<canvas id="hudCanvas"></canvas>
+<canvas id="tapCanvas"></canvas>
+<canvas id="tgtCanvas"></canvas>
+<canvas id="blueCanvas"></canvas>
+<div id="scanlines"></div>
+<div id="scanlinesTgt"></div>
+<div id="scanlinesBlue"></div>
+<div id="vignette"></div>
+<div id="vignetteBlue"></div>
+<div id="revealFlash"></div>
+<div id="flashOverlay"></div>
 
-    <button id="modeToggle" class="mode-wc">TARGET MODE</button>
+<!-- MODE TRANSITION FX -->
+<div id="modeTransition"></div>
+<div id="modeScanWipe"></div>
 
-    <div id="wcUI">
-        <div id="terminal"></div>
-        <div id="botbarWC">
-            <span id="coordsWC">📍 55.75°N 37.61°E</span>
-            <span>WHITE_FILTER</span>
-            <span id="fpsCounter">FPS: --</span>
+<!-- MODE BUTTON -->
+<button id="modeToggle" class="mode-wc">
+    <div class="mode-btn-inner">
+        <div class="mode-dot"></div>
+        <span id="modeBtnText">TARGET MODE</span>
+    </div>
+</button>
+
+<!-- MODE DOTS INDICATOR -->
+<div id="modeDots">
+    <div class="md-dot active-wc" id="dot-wc"></div>
+    <div class="md-dot" id="dot-tgt"></div>
+    <div class="md-dot" id="dot-blue"></div>
+</div>
+
+<!-- WHITE CORE UI -->
+<div id="wcUI">
+    <div id="terminal"></div>
+    <div id="botbarWC">
+        <span id="coordsWC">📍 55.75°N 37.61°E</span>
+        <span>WHITE_FILTER</span>
+        <span id="fpsCounter">FPS: --</span>
+    </div>
+</div>
+
+<!-- TARGET UI -->
+<div id="tgtUI">
+    <div id="terminalTGT"><span id="cursor"></span></div>
+    <div id="statusPanel">
+        <div class="sp-row"><span class="sp-key">network</span><span class="sp-val active">ONLINE</span></div>
+        <div class="sp-row"><span class="sp-key">model</span><span class="sp-val" id="modelStat">LOADING</span></div>
+        <div class="sp-row"><span class="sp-key">mode</span><span class="sp-val" id="modeVal">PASSIVE</span></div>
+        <div class="sp-row"><span class="sp-key">objects</span><span class="sp-val" id="objCount">00</span></div>
+        <div class="sp-row"><span class="sp-key">lock</span><span class="sp-val" id="lockStat">--</span></div>
+        <div class="sp-row"><span class="sp-key">conf</span><div class="bar-wrap"><div class="bar-fill" id="confBar" style="width:0%"></div></div></div>
+        <div class="sp-row"><span class="sp-key">ew</span><div class="bar-wrap"><div class="bar-fill" id="ewBar" style="width:0%"></div></div></div>
+        <div class="sp-row"><span class="sp-key">captures</span><span class="sp-val" id="captureStat">0</span></div>
+    </div>
+    <div id="ewAlertTGT">⚠ EW INTERFERENCE</div>
+    <div id="threatBox"><div class="tb-header">// target acquired</div><div id="threatLines"></div></div>
+    <div id="captureCard">
+        <div id="portraitWrap">
+            <canvas id="portraitCanvas"></canvas>
+            <div class="pcorner tl"></div><div class="pcorner tr"></div><div class="pcorner bl"></div><div class="pcorner br"></div>
+            <div id="pScanlines"></div><div id="pCross"></div>
+            <div id="pStamp"><span id="pStampTime">--:--:--</span><span id="pStampId">ID:------</span></div>
+            <div id="capturedFlash">CAPTURED</div>
+        </div>
+        <div id="captureMeta">
+            <div class="cm-header"><span>SUBJ DATA</span><div class="cm-blink"></div></div>
+            <div id="cmRows"></div>
         </div>
     </div>
-
-    <div id="tgtUI">
-        <div id="terminalTGT"><span id="cursor"></span></div>
-        <div id="statusPanel">
-            <div class="sp-row"><span class="sp-key">network</span><span class="sp-val active">ONLINE</span></div>
-            <div class="sp-row"><span class="sp-key">model</span><span class="sp-val" id="modelStat">LOADING</span></div>
-            <div class="sp-row"><span class="sp-key">mode</span><span class="sp-val" id="modeVal">PASSIVE</span></div>
-            <div class="sp-row"><span class="sp-key">objects</span><span class="sp-val" id="objCount">00</span></div>
-            <div class="sp-row"><span class="sp-key">lock</span><span class="sp-val" id="lockStat">--</span></div>
-            <div class="sp-row"><span class="sp-key">conf</span><div class="bar-wrap"><div class="bar-fill" id="confBar" style="width:0%"></div></div></div>
-            <div class="sp-row"><span class="sp-key">ew</span><div class="bar-wrap"><div class="bar-fill" id="ewBar" style="width:0%"></div></div></div>
-            <div class="sp-row"><span class="sp-key">captures</span><span class="sp-val" id="captureStat">0</span></div>
-        </div>
-        <div id="ewAlertTGT">⚠ EW INTERFERENCE</div>
-        <div id="threatBox"><div class="tb-header">// target acquired</div><div id="threatLines"></div></div>
-        <div id="captureCard">
-            <div id="portraitWrap">
-                <canvas id="portraitCanvas"></canvas>
-                <div class="pcorner tl"></div><div class="pcorner tr"></div><div class="pcorner bl"></div><div class="pcorner br"></div>
-                <div id="pScanlines"></div><div id="pCross"></div>
-                <div id="pStamp"><span id="pStampTime">--:--:--</span><span id="pStampId">ID:------</span></div>
-                <div id="capturedFlash">CAPTURED</div>
-            </div>
-            <div id="captureMeta">
-                <div class="cm-header"><span>SUBJ DATA</span><div class="cm-blink"></div></div>
-                <div id="cmRows"></div>
-            </div>
-        </div>
-        <div id="tapHint">TAP TO CAPTURE</div>
-        <div id="botbarTGT">
-            <span class="coords" id="coordsL">LAT 00°00'00"N  LON 000°00'00"E</span>
-            <span class="coords" id="coordsR">ALT --m  SPD --kts  HDG --°</span>
-        </div>
+    <div id="tapHint">TAP TO CAPTURE</div>
+    <div id="botbarTGT">
+        <span class="coords" id="coordsL">LAT 00°00'00"N  LON 000°00'00"E</span>
+        <span class="coords" id="coordsR">ALT --m  SPD --kts  HDG --°</span>
     </div>
+</div>
+
+<!-- BLUE SPECTRAL UI -->
+<div id="blueUI">
+    <div id="blueTopPanel">
+        <span>SYS:SPECTRAL_v2</span>
+        <span id="blueTopTitle">SPECTRAL MODE</span>
+        <span id="blueTopTime">--:--:--</span>
+    </div>
+
+    <div id="bluePingDot">
+        <div class="ping-ring"></div>
+        <div class="ping-ring"></div>
+        <div class="ping-ring"></div>
+        <div class="ping-center"></div>
+    </div>
+
+    <div id="blueDetectedList"></div>
+
+    <canvas id="blueSonarCanvas" width="130" height="130"></canvas>
+
+    <div id="blueSpectrumWrap">
+        <div class="bsp-title">// spectral analysis</div>
+        <div class="bsp-row"><span class="bsp-label">MOTION</span><div class="bsp-bar-bg"><div class="bsp-bar-fill" id="bspMotion" style="width:0%"></div></div><span class="bsp-val" id="bspMotionVal">0%</span></div>
+        <div class="bsp-row"><span class="bsp-label">THERMAL</span><div class="bsp-bar-bg"><div class="bsp-bar-fill" id="bspThermal" style="width:0%"></div></div><span class="bsp-val" id="bspThermalVal">0%</span></div>
+        <div class="bsp-row"><span class="bsp-label">DENSITY</span><div class="bsp-bar-bg"><div class="bsp-bar-fill" id="bspDensity" style="width:0%"></div></div><span class="bsp-val" id="bspDensityVal">0%</span></div>
+        <div class="bsp-row"><span class="bsp-label">SIGNAL</span><div class="bsp-bar-bg"><div class="bsp-bar-fill" id="bspSignal" style="width:0%"></div></div><span class="bsp-val" id="bspSignalVal">0%</span></div>
+        <div class="bsp-row"><span class="bsp-label">TRACK</span><div class="bsp-bar-bg"><div class="bsp-bar-fill" id="bspTrack" style="width:0%"></div></div><span class="bsp-val" id="bspTrackVal">0%</span></div>
+    </div>
+
+    <canvas id="blueWaveCanvas" width="300" height="60"></canvas>
+
+    <div id="blueTerminal"></div>
+
+    <div id="botbarBLUE">
+        <span id="blueCoordsL">SPEC:ACTIVE</span>
+        <span id="blueCenterStat">◈ SPECTRAL TRACKING ◈</span>
+        <span id="blueCoordsR">OBJ:00</span>
+    </div>
+</div>
+```
+
 </div>
 
 <script id="vs" type="x-shader/x-vertex">
@@ -210,9 +477,13 @@ void main(){
 </script>
 
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0"></script>
+
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3"></script>
 
 <script>
+const MODES = ['wc', 'tgt', 'blue'];
+const MODE_LABELS = { wc: 'TARGET MODE', tgt: 'BLUE MODE', blue: 'WHITE MODE' };
+
 const THREAT_HIGH   = ['person','car','truck','bus','motorcycle','airplane','boat','train'];
 const THREAT_MEDIUM = ['bicycle','horse','cow','dog','cat','bird','sheep','bear','elephant','zebra','giraffe'];
 function getThreat(c){return THREAT_HIGH.includes(c)?'HIGH':THREAT_MEDIUM.includes(c)?'MED':'LOW';}
@@ -223,6 +494,8 @@ const hudCtx     = hudCanvas.getContext('2d');
 const tapCanvas  = document.getElementById('tapCanvas');
 const tgtCanvas  = document.getElementById('tgtCanvas');
 const tgtCtx     = tgtCanvas.getContext('2d');
+const blueCanvas = document.getElementById('blueCanvas');
+const blueCtx    = blueCanvas.getContext('2d');
 
 let model=null, allPredictions=[], currentMode='wc', systemReady=false;
 let gl=null,glProg=null,uRectsLoc,uCountLoc,uRevIdxLoc,uRevProgLoc;
@@ -235,85 +508,174 @@ let isLocked=false, lockFactor=0, pulseTime=0, scanAngle=0, textTick=0;
 let infoLines=[], glitchActive=0;
 let captureCount=0, cardVisible=false;
 let tgtEwI=0, tgtEwTimer=0, tgtRunning=false;
+let blueRunning=false;
+let blueWavePhase=0, blueSonarAngle=0;
+let blueSpecValues={motion:0,thermal:0,density:0,signal:0,track:0};
 let lat=55.7558+(Math.random()-.5)*.01, lon=37.6173+(Math.random()-.5)*.01;
+let isTransitioning=false;
 
-/* ════ START (FIXED CAMERA) ════ */
+/* ════ START ════ */
 document.getElementById('startBtn').onclick = async () => {
     const btn = document.getElementById('startBtn');
-    btn.style.opacity = '0'; 
+    btn.style.opacity = '0';
     btn.style.transition = 'opacity 0.5s';
     setTimeout(() => btn.style.display = 'none', 500);
 
     try {
-        // Улучшенные параметры для доступа к камере
-        const constraints = {
-            video: {
-                facingMode: 'environment', // Приоритет задней камере на телефонах
-                width: { ideal: 1280 },
-                height: { ideal: 720 }
-            },
+        const stream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: 'environment', width:{ideal:1280}, height:{ideal:720} },
             audio: false
-        };
-
-        const stream = await navigator.mediaDevices.getUserMedia(constraints);
-        video.srcObject = stream;
-        
-        // Ждем загрузки метаданных видео для корректных размеров
-        await new Promise((resolve) => {
-            video.onloadedmetadata = () => {
-                video.play();
-                resolve();
-            };
         });
+        video.srcObject = stream;
+        await new Promise(resolve => { video.onloadedmetadata = () => { video.play(); resolve(); }; });
 
         model = await cocoSsd.load();
         document.getElementById('modelStat').textContent = 'COCO-SSD';
         document.getElementById('modeVal').textContent = 'ACTIVE';
         systemReady = true;
 
-        initWebGL(); 
-        initTapHandler(); 
-        detectLoop(); 
-        drawHUD(); 
-        startCoordsDrift();
-        setMode('wc');
+        initWebGL(); initTapHandler(); detectLoop(); drawHUD(); startCoordsDrift(); startBlueTopClock();
+        setMode('wc', false);
 
         document.getElementById('modeToggle').style.display = 'block';
+        document.getElementById('modeDots').style.display = 'flex';
         addLogWC("✓ SYSTEM ONLINE | WHITE_CORE ACTIVE");
         addLogWC("🎨 TAP BOX = REAL VIEW (3s)");
     } catch (e) {
         console.error('Camera Error:', e);
-        alert('Camera error: ' + e.message + '\nEnsure you are using HTTPS.');
+        alert('Camera error: ' + e.message + '\nEnsure HTTPS.');
     }
 };
 
-/* ════ MODE SWITCH ════ */
-document.getElementById('modeToggle').onclick=()=>setMode(currentMode==='wc'?'tgt':'wc');
+/* ════ MODE SWITCH WITH ANIMATION ════ */
+document.getElementById('modeToggle').onclick = () => {
+    if(isTransitioning) return;
+    const idx = MODES.indexOf(currentMode);
+    const next = MODES[(idx + 1) % MODES.length];
+    setMode(next, true);
+};
 
-function setMode(mode){
-    currentMode=mode;
-    const wcUI=document.getElementById('wcUI'), tgtUI=document.getElementById('tgtUI');
-    const toggle=document.getElementById('modeToggle');
-    const wglC=document.getElementById('webglCanvas');
-    const sc1=document.getElementById('scanlines'), sc2=document.getElementById('scanlinesTgt');
-    const vig=document.getElementById('vignette');
+function triggerModeTransition(toMode, cb) {
+    isTransitioning = true;
+    const overlay   = document.getElementById('modeTransition');
+    const scanWipe  = document.getElementById('modeScanWipe');
+    const cls       = 'to-' + toMode;
 
-    if(mode==='wc'){
-        wcUI.style.display='block'; tgtUI.style.display='none';
-        wglC.style.display='block'; hudCanvas.style.display='block'; tapCanvas.style.display='block'; tgtCanvas.style.display='none';
-        sc1.style.display='block'; sc2.style.display='none'; vig.style.display='none';
-        video.className='';
-        toggle.textContent='TARGET MODE'; toggle.className='mode-wc';
-        tgtRunning=false;
+    // Flash overlay
+    overlay.className = 'active ' + cls;
+    scanWipe.className = 'active ' + cls;
+
+    // Pixel dissolve effect on blueCanvas briefly
+    if(blueCanvas.style.display !== 'none' || toMode === 'blue') {
+        flashPixelDissolve(toMode);
+    }
+
+    setTimeout(() => {
+        overlay.className = '';
+        scanWipe.className = '';
+        isTransitioning = false;
+        if(cb) cb();
+    }, 580);
+
+    // Switch actual mode after ~120ms (mid-flash)
+    setTimeout(cb, 90);
+}
+
+function flashPixelDissolve(mode) {
+    const c = document.createElement('canvas');
+    c.width = innerWidth; c.height = innerHeight;
+    c.style.cssText = 'position:absolute;inset:0;z-index:198;pointer-events:none;';
+    document.getElementById('container').appendChild(c);
+    const cx = c.getContext('2d');
+    const colors = { wc: '0,255,65', tgt: '255,32,32', blue: '0,170,255' };
+    const col = colors[mode] || '255,255,255';
+    let alpha = 0.35;
+    function step() {
+        cx.clearRect(0,0,c.width,c.height);
+        // Draw random pixel grid
+        const gs = 6;
+        for(let y=0; y<c.height; y+=gs) {
+            for(let x=0; x<c.width; x+=gs) {
+                if(Math.random() > 0.55) {
+                    cx.fillStyle = `rgba(${col},${alpha * Math.random()})`;
+                    cx.fillRect(x,y,gs,gs);
+                }
+            }
+        }
+        alpha -= 0.018;
+        if(alpha > 0) requestAnimationFrame(step);
+        else c.remove();
+    }
+    step();
+}
+
+function setMode(mode, animated) {
+    if(animated) {
+        triggerModeTransition(mode, () => applyMode(mode));
     } else {
-        wcUI.style.display='none'; tgtUI.style.display='block';
-        wglC.style.display='none'; hudCanvas.style.display='none'; tapCanvas.style.display='none'; tgtCanvas.style.display='block';
-        sc1.style.display='none'; sc2.style.display='block'; vig.style.display='block';
+        applyMode(mode);
+    }
+}
+
+function applyMode(mode) {
+    currentMode = mode;
+    const wcUI   = document.getElementById('wcUI');
+    const tgtUI  = document.getElementById('tgtUI');
+    const blueUI = document.getElementById('blueUI');
+    const toggle = document.getElementById('modeToggle');
+    const btnTxt = document.getElementById('modeBtnText');
+    const wglC   = document.getElementById('webglCanvas');
+    const sc1    = document.getElementById('scanlines');
+    const sc2    = document.getElementById('scanlinesTgt');
+    const sc3    = document.getElementById('scanlinesBlue');
+    const vig    = document.getElementById('vignette');
+    const vigB   = document.getElementById('vignetteBlue');
+
+    // Hide all
+    wcUI.style.display='none'; tgtUI.style.display='none'; blueUI.style.display='none';
+    wglC.style.display='none'; hudCanvas.style.display='none';
+    tapCanvas.style.display='none'; tgtCanvas.style.display='none'; blueCanvas.style.display='none';
+    sc1.style.display='none'; sc2.style.display='none'; sc3.style.display='none';
+    vig.style.display='none'; vigB.style.display='none';
+    video.className='';
+    tgtRunning=false; blueRunning=false;
+
+    // Update dots
+    document.getElementById('dot-wc').className   = 'md-dot' + (mode==='wc'?' active-wc':'');
+    document.getElementById('dot-tgt').className  = 'md-dot' + (mode==='tgt'?' active-tgt':'');
+    document.getElementById('dot-blue').className = 'md-dot' + (mode==='blue'?' active-blue':'');
+
+    // Next mode label
+    const nextIdx = (MODES.indexOf(mode)+1) % MODES.length;
+    btnTxt.textContent = MODE_LABELS[mode];
+
+    if(mode === 'wc') {
+        wcUI.style.display='block';
+        wglC.style.display='block'; hudCanvas.style.display='block'; tapCanvas.style.display='block';
+        sc1.style.display='block';
+        toggle.className='mode-wc';
+        addLogWC("◈ WHITE CORE ACTIVE");
+    }
+    else if(mode === 'tgt') {
+        tgtUI.style.display='block';
+        tgtCanvas.style.display='block';
+        sc2.style.display='block'; vig.style.display='block';
         video.className='mode-target';
-        toggle.textContent='WHITE MODE'; toggle.className='mode-tgt';
+        toggle.className='mode-tgt';
         tgtCanvas.width=innerWidth*devicePixelRatio; tgtCanvas.height=innerHeight*devicePixelRatio;
-        if(!tgtRunning){tgtRunning=true;drawTGT();}
+        tgtRunning=true; drawTGT();
         typeLogTGT('MODE: TARGET ACQUISITION','threat');
+    }
+    else if(mode === 'blue') {
+        blueUI.style.display='block';
+        blueCanvas.style.display='block';
+        sc3.style.display='block'; vigB.style.display='block';
+        video.className='mode-blue';
+        toggle.className='mode-blue';
+        blueCanvas.width=innerWidth*devicePixelRatio; blueCanvas.height=innerHeight*devicePixelRatio;
+        blueRunning=true; drawBlue();
+        addLogBlue("◈ SPECTRAL MODE ONLINE");
+        addLogBlue("⬡ SCANNING ENVIRONMENT...");
     }
 }
 
@@ -325,6 +687,7 @@ async function detectLoop(){
     updateShaderRects();
     tgtPrimary=allPredictions[0]||null;
     if(currentMode==='tgt') processTGTDetection();
+    if(currentMode==='blue') processBlueDetection();
     if(currentMode==='wc'){
         const r=Math.random();
         if(r>0.985){wcEwLevel=1;setTimeout(()=>{wcEwLevel=Math.random()>.6?.3:0;},450);}
@@ -471,6 +834,7 @@ function addLogWC(msg){
     if(t.childNodes.length>8)t.removeChild(t.firstChild);t.scrollTop=t.scrollHeight;
 }
 
+/* ════ TARGET MODE ════ */
 function processTGTDetection(){
     const p=tgtPrimary;
     if(p){
@@ -650,21 +1014,283 @@ function drawCornerDeco(ctx,W,H,dpr){
     ctx.beginPath();ctx.moveTo(0,H/2);ctx.lineTo(W,H/2);ctx.moveTo(W/2,0);ctx.lineTo(W/2,H);ctx.stroke();ctx.setLineDash([]);
 }
 
+/* ════ BLUE SPECTRAL MODE ════ */
+function processBlueDetection() {
+    const count = allPredictions.length;
+    // Update spectrum bars with animated targets
+    const tgt = {
+        motion:  count > 0 ? Math.min(100, 30 + count * 18 + Math.random()*15) : Math.max(0, blueSpecValues.motion - 2),
+        thermal: count > 0 ? Math.min(100, 20 + count * 12 + Math.random()*10) : Math.max(0, blueSpecValues.thermal - 1.5),
+        density: count > 0 ? Math.min(100, count * 22 + Math.random()*20)       : Math.max(0, blueSpecValues.density - 1),
+        signal:  Math.min(100, 40 + Math.sin(Date.now()/1400)*30 + Math.random()*10),
+        track:   count > 0 ? Math.min(100, tgtPrimary ? 70 + tgtPrimary.score*28 : 30) : Math.max(0, blueSpecValues.track - 3)
+    };
+    const lerp = (a,b,t)=>a+(b-a)*t;
+    blueSpecValues.motion  = lerp(blueSpecValues.motion,  tgt.motion,  0.08);
+    blueSpecValues.thermal = lerp(blueSpecValues.thermal, tgt.thermal, 0.06);
+    blueSpecValues.density = lerp(blueSpecValues.density, tgt.density, 0.05);
+    blueSpecValues.signal  = lerp(blueSpecValues.signal,  tgt.signal,  0.12);
+    blueSpecValues.track   = lerp(blueSpecValues.track,   tgt.track,   0.07);
+
+    const set = (id, val) => {
+        const v = Math.round(val);
+        const el = document.getElementById(id);
+        const vl = document.getElementById(id+'Val');
+        if(el) el.style.width = v + '%';
+        if(vl) vl.textContent = v + '%';
+    };
+    set('bspMotion', blueSpecValues.motion);
+    set('bspThermal', blueSpecValues.thermal);
+    set('bspDensity', blueSpecValues.density);
+    set('bspSignal',  blueSpecValues.signal);
+    set('bspTrack',   blueSpecValues.track);
+
+    // Update detected list
+    const list = document.getElementById('blueDetectedList');
+    if(list) {
+        list.innerHTML = '';
+        allPredictions.slice(0,4).forEach(p=>{
+            const el = document.createElement('div');
+            el.className = 'blue-det-item';
+            el.innerHTML = `<div class="bdi-class">${p.class.toUpperCase()}</div><div class="bdi-conf">CONF: ${Math.round(p.score*100)}% ◈ ${getThreat(p.class.toLowerCase())}</div>`;
+            list.appendChild(el);
+        });
+    }
+    document.getElementById('blueCoordsR').textContent = `OBJ:${String(count).padStart(2,'0')}`;
+
+    if(count > 0 && Math.random() > 0.9) {
+        addLogBlue(`⬡ ${allPredictions[0].class.toUpperCase()} | SPEC:${Math.round(blueSpecValues.signal)}%`);
+    }
+}
+
+function addLogBlue(msg) {
+    const t = document.getElementById('blueTerminal'); if(!t) return;
+    const e = document.createElement('div'); e.className = 'log-entry-blue';
+    e.innerHTML = `› ${msg}`; t.appendChild(e);
+    if(t.childNodes.length > 6) t.removeChild(t.firstChild);
+    t.scrollTop = t.scrollHeight;
+}
+
+function drawBlue() {
+    if(currentMode !== 'blue') { blueRunning = false; return; }
+    const dpr = devicePixelRatio;
+    blueCanvas.width  = innerWidth * dpr;
+    blueCanvas.height = innerHeight * dpr;
+    const ctx = blueCtx, W = blueCanvas.width, H = blueCanvas.height;
+    ctx.clearRect(0, 0, W, H);
+
+    blueWavePhase  += 0.04;
+    blueSonarAngle += 0.025;
+
+    // Blue bounding boxes for detected objects
+    if(video.videoWidth > 0) {
+        const sX = innerWidth  / video.videoWidth;
+        const sY = innerHeight / video.videoHeight;
+
+        allPredictions.forEach((p, i) => {
+            const [bx, by, bw, bh] = p.bbox;
+            const rx = bx*sX*dpr, ry = by*sY*dpr, rw = bw*sX*dpr, rh = bh*sY*dpr;
+            const alpha = 0.5 + 0.3 * Math.sin(Date.now()/300 + i);
+            const isFirst = i === 0;
+
+            // Outer glow rect
+            ctx.shadowBlur = isFirst ? 18 : 8;
+            ctx.shadowColor = isFirst ? 'rgba(0,170,255,0.8)' : 'rgba(0,120,200,0.5)';
+            ctx.strokeStyle = isFirst ? `rgba(68,204,255,${alpha})` : `rgba(0,150,220,${alpha*0.7})`;
+            ctx.lineWidth = isFirst ? 2*dpr : 1.2*dpr;
+            ctx.strokeRect(rx, ry, rw, rh);
+
+            // Inner thin rect
+            ctx.shadowBlur = 0;
+            ctx.strokeStyle = `rgba(0,170,255,${alpha*0.3})`;
+            ctx.lineWidth = 0.5*dpr;
+            ctx.setLineDash([4*dpr, 4*dpr]);
+            ctx.strokeRect(rx+4*dpr, ry+4*dpr, rw-8*dpr, rh-8*dpr);
+            ctx.setLineDash([]);
+
+            // Corner brackets
+            const cl = Math.min(rw,rh)*0.2;
+            ctx.strokeStyle = isFirst ? `rgba(68,204,255,${0.8+alpha*0.2})` : `rgba(0,170,255,0.5)`;
+            ctx.lineWidth = isFirst ? 2.5*dpr : 1.5*dpr;
+            ctx.shadowBlur = isFirst ? 12 : 4;
+            ctx.shadowColor = 'rgba(0,170,255,0.6)';
+            ctx.beginPath();
+            ctx.moveTo(rx,ry+cl); ctx.lineTo(rx,ry); ctx.lineTo(rx+cl,ry);
+            ctx.moveTo(rx+rw-cl,ry); ctx.lineTo(rx+rw,ry); ctx.lineTo(rx+rw,ry+cl);
+            ctx.moveTo(rx+rw,ry+rh-cl); ctx.lineTo(rx+rw,ry+rh); ctx.lineTo(rx+rw-cl,ry+rh);
+            ctx.moveTo(rx+cl,ry+rh); ctx.lineTo(rx,ry+rh); ctx.lineTo(rx,ry+rh-cl);
+            ctx.stroke();
+
+            // Fill
+            ctx.fillStyle = `rgba(0,80,180,${0.04 + (isFirst?0.04:0)})`;
+            ctx.fillRect(rx, ry, rw, rh);
+
+            // Label
+            ctx.shadowBlur = 6; ctx.shadowColor = 'rgba(0,170,255,0.8)';
+            ctx.fillStyle = isFirst ? 'rgba(68,204,255,0.95)' : 'rgba(0,170,255,0.7)';
+            ctx.font = `${isFirst?11:9}px 'Share Tech Mono'`;
+            ctx.fillText(p.class.toUpperCase() + ' ' + Math.round(p.score*100)+'%', rx+6*dpr, ry-5*dpr);
+
+            // Hexagonal scan marker for primary
+            if(isFirst) {
+                const cx4=rx+rw/2, cy4=ry+rh/2;
+                ctx.save(); ctx.translate(cx4,cy4);
+                ctx.rotate(Date.now()/1000);
+                ctx.strokeStyle=`rgba(68,204,255,${0.4})`;
+                ctx.lineWidth=dpr; ctx.shadowBlur=8;
+                const r2=Math.min(rw,rh)*0.35;
+                ctx.beginPath();
+                for(let a=0;a<6;a++){const rad=a*Math.PI/3;a===0?ctx.moveTo(Math.cos(rad)*r2,Math.sin(rad)*r2):ctx.lineTo(Math.cos(rad)*r2,Math.sin(rad)*r2);}
+                ctx.closePath(); ctx.stroke();
+                ctx.restore();
+            }
+        });
+    }
+
+    // Sonar mini display (bottom right area via canvas)
+    drawBlueSonar();
+
+    // Wave display
+    drawBlueWave();
+
+    // Full-screen grid overlay
+    drawBlueGrid(ctx, W, H, dpr);
+
+    // Corner decorations
+    drawBlueCorners(ctx, W, H, dpr);
+
+    requestAnimationFrame(drawBlue);
+}
+
+function drawBlueSonar() {
+    const c = document.getElementById('blueSonarCanvas');
+    const ctx = c.getContext('2d');
+    const W = 130, H = 130, cx = 65, cy = 65, R = 55;
+    ctx.clearRect(0,0,W,H);
+    ctx.fillStyle='rgba(0,5,20,0.85)';ctx.fillRect(0,0,W,H);
+
+    // Concentric rings
+    for(let r=R/4; r<=R; r+=R/4) {
+        ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2);
+        ctx.strokeStyle=`rgba(0,120,200,${r===R?0.4:0.18})`;
+        ctx.lineWidth=0.7; ctx.stroke();
+    }
+    // Cross hairs
+    ctx.strokeStyle='rgba(0,120,200,0.25)';ctx.lineWidth=0.5;
+    ctx.beginPath();ctx.moveTo(cx-R,cy);ctx.lineTo(cx+R,cy);ctx.moveTo(cx,cy-R);ctx.lineTo(cx,cy+R);ctx.stroke();
+
+    // Sonar sweep
+    ctx.save(); ctx.translate(cx,cy); ctx.rotate(blueSonarAngle);
+    const sg=ctx.createConicalGradient?null:null; // fallback
+    // sweep pie
+    ctx.beginPath();
+    ctx.moveTo(0,0);
+    ctx.arc(0,0,R,-0.3,0);
+    ctx.closePath();
+    const gr=ctx.createLinearGradient(0,-R,0,0);
+    gr.addColorStop(0,'rgba(0,170,255,0)');
+    gr.addColorStop(1,'rgba(0,170,255,0.25)');
+    ctx.fillStyle=gr;ctx.fill();
+    ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(R,0);
+    ctx.strokeStyle='rgba(0,200,255,0.7)';ctx.lineWidth=1.5;
+    ctx.shadowBlur=8;ctx.shadowColor='rgba(0,170,255,0.9)';
+    ctx.stroke();
+    ctx.restore();
+
+    // Blips for detections
+    allPredictions.slice(0,6).forEach((p,i)=>{
+        const angle=i*1.1+blueSonarAngle*0.3;
+        const dist=(0.3+i*0.1)*R;
+        const bx=cx+Math.cos(angle)*dist, by=cy+Math.sin(angle)*dist;
+        ctx.beginPath();ctx.arc(bx,by,3,0,Math.PI*2);
+        ctx.fillStyle='rgba(0,220,255,0.9)';
+        ctx.shadowBlur=8;ctx.shadowColor='rgba(0,170,255,1)';
+        ctx.fill();ctx.shadowBlur=0;
+    });
+
+    // Border
+    ctx.beginPath();ctx.arc(cx,cy,R,0,Math.PI*2);
+    ctx.strokeStyle='rgba(0,170,255,0.4)';ctx.lineWidth=1;ctx.stroke();
+    ctx.strokeStyle='rgba(0,170,255,0.15)';
+    ctx.strokeRect(0,0,W,H);
+}
+
+function drawBlueWave() {
+    const c = document.getElementById('blueWaveCanvas');
+    const ctx = c.getContext('2d');
+    const W = 300, H = 60;
+    ctx.clearRect(0,0,W,H);
+    ctx.fillStyle='rgba(0,5,20,0.6)';ctx.fillRect(0,0,W,H);
+
+    const count = allPredictions.length;
+    const amp = 8 + count * 4;
+
+    // Draw 3 wave layers
+    [[0,'rgba(0,170,255,0.6)',1.0],[0.5,'rgba(68,204,255,0.35)',0.7],[1.0,'rgba(0,120,200,0.25)',0.4]].forEach(([phOff,col,sc])=>{
+        ctx.beginPath();
+        for(let x=0;x<=W;x++){
+            const y=H/2+Math.sin((x/W)*Math.PI*6+blueWavePhase+phOff*Math.PI)*amp*sc
+                      +Math.sin((x/W)*Math.PI*10+blueWavePhase*1.3+phOff)*amp*0.4*sc;
+            x===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+        }
+        ctx.strokeStyle=col;ctx.lineWidth=1.5;
+        ctx.shadowBlur=6;ctx.shadowColor='rgba(0,170,255,0.5)';
+        ctx.stroke();ctx.shadowBlur=0;
+    });
+
+    // Glow line center
+    ctx.strokeStyle='rgba(0,5,20,0.8)';ctx.lineWidth=0.5;ctx.setLineDash([4,4]);
+    ctx.beginPath();ctx.moveTo(0,H/2);ctx.lineTo(W,H/2);ctx.stroke();ctx.setLineDash([]);
+
+    // Border
+    ctx.strokeStyle='rgba(0,170,255,0.2)';ctx.lineWidth=1;ctx.strokeRect(0,0,W,H);
+}
+
+function drawBlueGrid(ctx, W, H, dpr) {
+    const gs = 60*dpr;
+    ctx.strokeStyle='rgba(0,60,120,0.18)';ctx.lineWidth=0.5;
+    for(let x=0;x<W;x+=gs){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
+    for(let y=0;y<H;y+=gs){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+}
+
+function drawBlueCorners(ctx, W, H, dpr) {
+    const s=32*dpr;
+    ctx.strokeStyle='rgba(0,170,255,0.3)';ctx.lineWidth=1.5*dpr;ctx.shadowBlur=10;ctx.shadowColor='rgba(0,170,255,0.5)';
+    [[0,0,1,1],[W,0,-1,1],[W,H,-1,-1],[0,H,1,-1]].forEach(([x,y,sx,sy])=>{
+        ctx.beginPath();ctx.moveTo(x+sx*s,y);ctx.lineTo(x,y);ctx.lineTo(x,y+sy*s);ctx.stroke();
+    });
+    ctx.shadowBlur=0;
+}
+
+/* ════ SHARED UTILS ════ */
 function startCoordsDrift(){
     setInterval(()=>{
         lat+=(Math.random()-.5)*.00005;lon+=(Math.random()-.5)*.00005;
         const f=v=>`${Math.floor(Math.abs(v))}°${String(Math.floor((Math.abs(v)%1)*60)).padStart(2,'0')}'${String(((Math.abs(v)%1*60)%1*60)|0).padStart(2,'0')}"`;
-        document.getElementById('coordsL').textContent=`LAT ${f(lat)}${lat>0?'N':'S'}  LON ${f(lon)}${lon>0?'E':'W'}`;
+        const coordsL=document.getElementById('coordsL');
+        if(coordsL) coordsL.textContent=`LAT ${f(lat)}${lat>0?'N':'S'}  LON ${f(lon)}${lon>0?'E':'W'}`;
         const hdg=(360+Math.round(45+Math.sin(Date.now()/10000)*20))%360;
-        document.getElementById('coordsR').textContent=`ALT ${180+Math.round(Math.sin(Date.now()/7000)*5)}m  SPD ${Math.round(12+Math.random()*2)}kts  HDG ${hdg}°`;
+        const coordsR=document.getElementById('coordsR');
+        if(coordsR) coordsR.textContent=`ALT ${180+Math.round(Math.sin(Date.now()/7000)*5)}m  SPD ${Math.round(12+Math.random()*2)}kts  HDG ${hdg}°`;
+        const bCL=document.getElementById('blueCoordsL');
+        if(bCL) bCL.textContent=`${lat.toFixed(4)}°N ${lon.toFixed(4)}°E`;
     },1500);
 }
 
+function startBlueTopClock() {
+    setInterval(()=>{
+        const el=document.getElementById('blueTopTime');
+        if(el) el.textContent=tsTGT();
+    },1000);
+}
+
 window.addEventListener('resize',()=>{
-    hudCanvas.width=innerWidth;hudCanvas.height=innerHeight;
-    tapCanvas.width=innerWidth;tapCanvas.height=innerHeight;
-    tgtCanvas.width=innerWidth*devicePixelRatio;tgtCanvas.height=innerHeight*devicePixelRatio;
+    hudCanvas.width=innerWidth; hudCanvas.height=innerHeight;
+    tapCanvas.width=innerWidth; tapCanvas.height=innerHeight;
+    tgtCanvas.width=innerWidth*devicePixelRatio; tgtCanvas.height=innerHeight*devicePixelRatio;
+    blueCanvas.width=innerWidth*devicePixelRatio; blueCanvas.height=innerHeight*devicePixelRatio;
 });
 </script>
+
 </body>
 </html>
