@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>myWLK</title>
+    <title>myWLK v2</title>
     <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@300;500;700&display=swap" rel="stylesheet">
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -23,52 +23,90 @@
         #tapCanvas   { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 6; cursor: pointer; display: none; }
         #tgtCanvas   { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 7; pointer-events: none; display: none; }
         #blueCanvas  { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 7; pointer-events: none; display: none; }
-        #scanlines    { position: absolute; inset: 0; pointer-events: none; z-index: 8; display: none; background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.12) 2px, rgba(0,0,0,0.12) 3px); opacity: 0.4; }
-        #scanlinesTgt { position: absolute; inset: 0; pointer-events: none; z-index: 8; display: none; background: repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,0,0,0.18) 3px, rgba(0,0,0,0.18) 4px); animation: scanScroll 8s linear infinite; }
-        #scanlinesBlue { position: absolute; inset: 0; pointer-events: none; z-index: 8; display: none; background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,40,80,0.25) 2px, rgba(0,40,80,0.25) 3px); animation: scanScrollBlue 6s linear infinite; }
-        @keyframes scanScroll { from{background-position:0 0} to{background-position:0 100px} }
-        @keyframes scanScrollBlue { from{background-position:0 0} to{background-position:0 80px} }
-        #vignette { position: absolute; inset: 0; pointer-events: none; z-index: 4; display: none; background: radial-gradient(ellipse 80% 80% at 50% 50%, transparent 40%, rgba(0,0,0,0.8) 100%); }
-        #vignetteBlue { position: absolute; inset: 0; pointer-events: none; z-index: 4; display: none; background: radial-gradient(ellipse 80% 80% at 50% 50%, transparent 30%, rgba(0,5,20,0.85) 100%); }
 
 ```
-    /* ══ MODE TRANSITION OVERLAY ══ */
-    #modeTransition {
-        position: absolute; inset: 0; z-index: 200; pointer-events: none;
-        opacity: 0;
-    }
-    #modeTransition.active { animation: modeFlash 0.6s ease forwards; }
-    @keyframes modeFlash {
-        0%  { opacity: 0; }
-        15% { opacity: 1; }
-        40% { opacity: 0.7; }
-        100% { opacity: 0; }
-    }
-    #modeTransition.to-wc  { background: radial-gradient(circle at 50% 50%, rgba(0,255,65,0.35) 0%, rgba(0,30,0,0.6) 60%, transparent 100%); }
-    #modeTransition.to-tgt { background: radial-gradient(circle at 50% 50%, rgba(255,20,20,0.35) 0%, rgba(30,0,0,0.6) 60%, transparent 100%); }
-    #modeTransition.to-blue{ background: radial-gradient(circle at 50% 50%, rgba(0,170,255,0.4) 0%, rgba(0,10,40,0.7) 60%, transparent 100%); }
+    /* ══ НОВЫЙ: Audio Heatmap Canvas ══ */
+    #audioHeatCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 6; pointer-events: none; display: none; opacity: 0.72; mix-blend-mode: screen; }
 
-    /* Scan line wipe effect */
-    #modeScanWipe {
-        position: absolute; inset: 0; z-index: 199; pointer-events: none;
+    /* ══ НОВЫЙ: Pixelization canvas (Blue Mode) ══ */
+    #pixelCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 8; pointer-events: none; display: none; mix-blend-mode: overlay; opacity: 0; }
+
+    #scanlines    { position: absolute; inset: 0; pointer-events: none; z-index: 8; display: none; background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.12) 2px, rgba(0,0,0,0.12) 3px); opacity: 0.4; }
+    #scanlinesTgt { position: absolute; inset: 0; pointer-events: none; z-index: 8; display: none; background: repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,0,0,0.18) 3px, rgba(0,0,0,0.18) 4px); animation: scanScroll 8s linear infinite; }
+    #scanlinesBlue { position: absolute; inset: 0; pointer-events: none; z-index: 8; display: none; background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,40,80,0.25) 2px, rgba(0,40,80,0.25) 3px); animation: scanScrollBlue 6s linear infinite; }
+    @keyframes scanScroll { from{background-position:0 0} to{background-position:0 100px} }
+    @keyframes scanScrollBlue { from{background-position:0 0} to{background-position:0 80px} }
+    #vignette { position: absolute; inset: 0; pointer-events: none; z-index: 4; display: none; background: radial-gradient(ellipse 80% 80% at 50% 50%, transparent 40%, rgba(0,0,0,0.8) 100%); }
+    #vignetteBlue { position: absolute; inset: 0; pointer-events: none; z-index: 4; display: none; background: radial-gradient(ellipse 80% 80% at 50% 50%, transparent 30%, rgba(0,5,20,0.85) 100%); }
+
+    /* ══ РЕЖИМ ПЕРЕКЛЮЧЕНИЯ С ГЛИТЧЕМ ══ */
+    #modeTransition { position: absolute; inset: 0; z-index: 200; pointer-events: none; opacity: 0; }
+    #modeTransition.active { animation: modeFlash 0.7s ease forwards; }
+    @keyframes modeFlash { 0%{opacity:0} 12%{opacity:1} 38%{opacity:0.8} 55%{opacity:0.3} 100%{opacity:0} }
+    #modeTransition.to-wc  { background: radial-gradient(circle at 50% 50%, rgba(0,255,65,0.4) 0%, rgba(0,30,0,0.65) 60%, transparent 100%); }
+    #modeTransition.to-tgt { background: radial-gradient(circle at 50% 50%, rgba(255,20,20,0.4) 0%, rgba(30,0,0,0.65) 60%, transparent 100%); }
+    #modeTransition.to-blue{ background: radial-gradient(circle at 50% 50%, rgba(0,170,255,0.45) 0%, rgba(0,10,40,0.75) 60%, transparent 100%); }
+
+    /* ══ НОВЫЙ: Глитч-полосы при переключении ══ */
+    #glitchBands {
+        position: absolute; inset: 0; z-index: 201; pointer-events: none;
         opacity: 0; overflow: hidden;
     }
-    #modeScanWipe.active { animation: wipeAnim 0.55s ease forwards; }
+    #glitchBands.active { animation: glitchBandsAnim 0.65s steps(1) forwards; }
+    @keyframes glitchBandsAnim {
+        0%   { opacity: 0; }
+        5%   { opacity: 1; }
+        15%  { opacity: 0; }
+        22%  { opacity: 1; }
+        30%  { opacity: 0; }
+        38%  { opacity: 1; }
+        50%  { opacity: 0; }
+        60%  { opacity: 0.6; }
+        75%  { opacity: 0; }
+        100% { opacity: 0; }
+    }
+    .gb-band {
+        position: absolute; left: 0; right: 0; background: currentColor;
+        transform: translateX(0);
+    }
+    #glitchBands.to-wc  { color: rgba(0,255,65,0.35); }
+    #glitchBands.to-tgt { color: rgba(255,32,32,0.35); }
+    #glitchBands.to-blue { color: rgba(0,170,255,0.4); }
+
+    /* ══ RGB Split оверлей при переключении ══ */
+    #rgbSplit {
+        position: absolute; inset: 0; z-index: 202; pointer-events: none;
+        opacity: 0;
+    }
+    #rgbSplit.active { animation: rgbSplitAnim 0.6s steps(2) forwards; }
+    @keyframes rgbSplitAnim {
+        0%  { opacity: 0; transform: translateX(0); }
+        8%  { opacity: 1; transform: translateX(-8px); filter: hue-rotate(90deg); }
+        16% { opacity: 0.7; transform: translateX(10px); filter: hue-rotate(-90deg); }
+        25% { opacity: 0; transform: translateX(0); }
+        40% { opacity: 0.5; transform: translateX(-5px); filter: hue-rotate(45deg); }
+        55% { opacity: 0; transform: translateX(0); }
+        100%{ opacity: 0; }
+    }
+
+    /* Scan line wipe */
+    #modeScanWipe { position: absolute; inset: 0; z-index: 199; pointer-events: none; opacity: 0; overflow: hidden; }
+    #modeScanWipe.active { animation: wipeAnim 0.6s ease forwards; }
     #modeScanWipe::before {
         content: ''; position: absolute; left: 0; right: 0;
-        height: 3px; top: -3px;
+        height: 4px; top: -4px;
         background: currentColor;
-        box-shadow: 0 0 20px 4px currentColor, 0 0 60px 10px currentColor;
+        box-shadow: 0 0 24px 6px currentColor, 0 0 70px 14px currentColor;
         animation: none;
     }
-    #modeScanWipe.active::before { animation: scanWipeLine 0.55s ease forwards; }
+    #modeScanWipe.active::before { animation: scanWipeLine 0.6s ease forwards; }
     @keyframes wipeAnim { 0%{opacity:1} 100%{opacity:0} }
-    @keyframes scanWipeLine { 0%{top:-3px} 100%{top:100vh} }
+    @keyframes scanWipeLine { 0%{top:-4px} 100%{top:100vh} }
     #modeScanWipe.to-wc  { color: var(--green); }
     #modeScanWipe.to-tgt { color: var(--red); }
     #modeScanWipe.to-blue { color: var(--blue); }
 
-    /* ══ MODE BUTTON (3 states) ══ */
+    /* ══ MODE BUTTON ══ */
     #modeToggle {
         position: absolute; top: 12px; right: 12px; z-index: 50; display: none;
         background: rgba(0,0,0,0.75); border: 1px solid rgba(255,255,255,0.2);
@@ -77,35 +115,47 @@
         padding: 0; cursor: pointer; backdrop-filter: blur(6px);
         transition: all 0.3s; overflow: hidden; width: 130px; height: 34px;
     }
-    .mode-btn-inner {
-        display: flex; align-items: center; justify-content: center;
-        gap: 7px; width: 100%; height: 100%; padding: 0 12px;
-        transition: all 0.3s;
-    }
-    .mode-dot {
-        width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
-        transition: all 0.3s;
-    }
+    .mode-btn-inner { display: flex; align-items: center; justify-content: center; gap: 7px; width: 100%; height: 100%; padding: 0 12px; transition: all 0.3s; }
+    .mode-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; transition: all 0.3s; }
     #modeToggle:hover { border-color: rgba(255,255,255,0.55); color: #fff; background: rgba(0,0,0,0.9); }
     #modeToggle.mode-wc  { border-color: rgba(0,255,65,0.5);  color: var(--green); }
     #modeToggle.mode-wc .mode-dot  { background: var(--green); box-shadow: 0 0 6px var(--green); }
     #modeToggle.mode-tgt { border-color: rgba(255,32,32,0.5); color: var(--red); }
-    #modeToggle.mode-tgt .mode-dot { background: var(--red);   box-shadow: 0 0 6px var(--red); }
+    #modeToggle.mode-tgt .mode-dot { background: var(--red); box-shadow: 0 0 6px var(--red); }
     #modeToggle.mode-blue { border-color: rgba(0,170,255,0.5); color: var(--blue-bright); }
     #modeToggle.mode-blue .mode-dot { background: var(--blue-bright); box-shadow: 0 0 6px var(--blue-bright); }
 
-    /* Mode indicator dots row */
-    #modeDots {
-        position: absolute; top: 50px; right: 12px; z-index: 50;
-        display: none; flex-direction: row; gap: 5px; align-items: center;
-    }
-    .md-dot {
-        width: 5px; height: 5px; border-radius: 50%;
-        background: rgba(255,255,255,0.2); transition: all 0.3s; cursor: default;
-    }
-    .md-dot.active-wc  { background: var(--green);       box-shadow: 0 0 6px var(--green); }
-    .md-dot.active-tgt { background: var(--red);         box-shadow: 0 0 6px var(--red); }
+    #modeDots { position: absolute; top: 50px; right: 12px; z-index: 50; display: none; flex-direction: row; gap: 5px; align-items: center; }
+    .md-dot { width: 5px; height: 5px; border-radius: 50%; background: rgba(255,255,255,0.2); transition: all 0.3s; cursor: default; }
+    .md-dot.active-wc  { background: var(--green); box-shadow: 0 0 6px var(--green); }
+    .md-dot.active-tgt { background: var(--red); box-shadow: 0 0 6px var(--red); }
     .md-dot.active-blue { background: var(--blue-bright); box-shadow: 0 0 6px var(--blue-bright); }
+
+    /* ══ AUDIO INDICATOR (Blue Mode) ══ */
+    #audioIndicator {
+        position: absolute; top: 44px; left: 15px; z-index: 20; display: none;
+        font-family: var(--mono); font-size: 9px; color: rgba(0,170,255,0.7);
+        letter-spacing: 2px; padding: 4px 8px;
+        background: rgba(0,5,20,0.7); border: 1px solid rgba(0,170,255,0.2);
+        border-left: 2px solid var(--blue);
+    }
+    #audioIndicator .aud-bars {
+        display: inline-flex; gap: 2px; align-items: flex-end;
+        height: 12px; margin-left: 6px; vertical-align: middle;
+    }
+    .aud-bar { width: 3px; background: var(--blue-bright); border-radius: 1px; transition: height 0.06s; min-height: 2px; }
+
+    /* ══ PIXEL GLITCH кнопка для Blue режима ══ */
+    #bluePixelBtn {
+        position: absolute; bottom: 48px; right: 210px; z-index: 20; display: none;
+        background: rgba(0,5,20,0.8); border: 1px solid rgba(0,170,255,0.35);
+        color: var(--blue-bright); font-family: var(--sans); font-size: 8px;
+        font-weight: 700; letter-spacing: 2px; padding: 5px 10px; cursor: pointer;
+        text-transform: uppercase; transition: all 0.2s;
+    }
+    #bluePixelBtn:hover { background: rgba(0,50,100,0.8); border-color: var(--blue-bright); }
+    #bluePixelBtn.glitching { animation: btnGlitch 0.4s steps(2) infinite; color: var(--cyan); }
+    @keyframes btnGlitch { 0%{transform:translateX(0)} 25%{transform:translateX(-3px)} 50%{transform:translateX(3px)} 75%{transform:translateX(-1px)} 100%{transform:translateX(0)} }
 
     #startBtn { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); background: none; border: none; color: #fff; font-family: var(--sans); font-size: 11px; font-weight: 700; letter-spacing: 5px; text-transform: uppercase; cursor: pointer; z-index: 100; outline: none; padding: 0; }
     #startBtn .btn-inner { display: flex; flex-direction: column; align-items: center; gap: 20px; }
@@ -235,68 +285,34 @@
         background: rgba(0,5,20,0.75); border: 1px solid rgba(0,170,255,0.2);
         padding: 10px; backdrop-filter: blur(4px);
     }
-    .bsp-title {
-        font-family: var(--sans); font-size: 8px; font-weight: 700;
-        letter-spacing: 3px; color: rgba(0,170,255,0.5);
-        border-bottom: 1px solid rgba(0,170,255,0.15);
-        padding-bottom: 5px; margin-bottom: 8px; text-transform: uppercase;
-    }
+    .bsp-title { font-family: var(--sans); font-size: 8px; font-weight: 700; letter-spacing: 3px; color: rgba(0,170,255,0.5); border-bottom: 1px solid rgba(0,170,255,0.15); padding-bottom: 5px; margin-bottom: 8px; text-transform: uppercase; }
     .bsp-row { display: flex; align-items: center; gap: 6px; margin-bottom: 5px; }
     .bsp-label { font-size: 8px; color: rgba(0,170,255,0.4); letter-spacing: 1px; width: 40px; flex-shrink: 0; }
     .bsp-bar-bg { flex: 1; height: 4px; background: rgba(0,170,255,0.1); border-radius: 2px; overflow: hidden; }
     .bsp-bar-fill { height: 100%; background: linear-gradient(to right, rgba(0,170,255,0.4), var(--blue-bright)); border-radius: 2px; transition: width 0.4s ease; box-shadow: 0 0 4px var(--blue); }
     .bsp-val { font-size: 9px; color: var(--blue-bright); width: 32px; text-align: right; }
-    #blueWaveCanvas {
-        position: absolute; bottom: 42px; left: 50%; transform: translateX(-50%);
-        z-index: 15; pointer-events: none; opacity: 0.7;
-    }
-    #bluePingDot {
-        position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
-        z-index: 14; pointer-events: none;
-    }
-    .ping-ring {
-        position: absolute; border: 1px solid rgba(0,170,255,0.5);
-        border-radius: 50%; animation: pingExpand 3s ease-out infinite;
-        transform: translate(-50%,-50%) scale(0); top: 0; left: 0;
-    }
+    #blueWaveCanvas { position: absolute; bottom: 42px; left: 50%; transform: translateX(-50%); z-index: 15; pointer-events: none; opacity: 0.7; }
+    #bluePingDot { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); z-index: 14; pointer-events: none; }
+    .ping-ring { position: absolute; border: 1px solid rgba(0,170,255,0.5); border-radius: 50%; animation: pingExpand 3s ease-out infinite; transform: translate(-50%,-50%) scale(0); top: 0; left: 0; }
     .ping-ring:nth-child(1) { width: 80px; height: 80px; animation-delay: 0s; }
     .ping-ring:nth-child(2) { width: 140px; height: 140px; animation-delay: 0.8s; }
     .ping-ring:nth-child(3) { width: 200px; height: 200px; animation-delay: 1.6s; }
-    @keyframes pingExpand {
-        0%   { transform: translate(-50%,-50%) scale(0); opacity: 0.8; }
-        100% { transform: translate(-50%,-50%) scale(1); opacity: 0; }
-    }
-    .ping-center {
-        width: 8px; height: 8px; border-radius: 50%;
-        background: var(--blue-bright);
-        box-shadow: 0 0 10px var(--blue), 0 0 20px var(--blue);
-        position: absolute; transform: translate(-50%,-50%); top: 0; left: 0;
-        animation: pingPulse 1.5s ease-in-out infinite;
-    }
-    @keyframes pingPulse {
-        0%,100%{ box-shadow: 0 0 10px var(--blue), 0 0 20px var(--blue); }
-        50%    { box-shadow: 0 0 20px var(--blue-bright), 0 0 40px var(--blue), 0 0 60px rgba(0,170,255,0.4); }
-    }
-    #blueDetectedList {
-        position: absolute; top: 44px; right: 18px; width: 180px;
-        z-index: 15; pointer-events: none;
-        display: flex; flex-direction: column; gap: 4px;
-    }
-    .blue-det-item {
-        background: rgba(0,5,20,0.8); border: 1px solid rgba(0,170,255,0.2);
-        border-left: 2px solid var(--blue); padding: 5px 8px;
-        font-family: var(--mono); font-size: 9px; color: rgba(0,170,255,0.8);
-        animation: blueItemIn 0.3s ease; letter-spacing: 1px;
-    }
-    @keyframes blueItemIn {
-        from{ opacity:0; transform: translateX(12px); }
-        to  { opacity:1; transform: translateX(0); }
-    }
+    @keyframes pingExpand { 0%{transform:translate(-50%,-50%) scale(0);opacity:0.8} 100%{transform:translate(-50%,-50%) scale(1);opacity:0} }
+    .ping-center { width: 8px; height: 8px; border-radius: 50%; background: var(--blue-bright); box-shadow: 0 0 10px var(--blue), 0 0 20px var(--blue); position: absolute; transform: translate(-50%,-50%); top: 0; left: 0; animation: pingPulse 1.5s ease-in-out infinite; }
+    @keyframes pingPulse { 0%,100%{box-shadow:0 0 10px var(--blue),0 0 20px var(--blue)} 50%{box-shadow:0 0 20px var(--blue-bright),0 0 40px var(--blue),0 0 60px rgba(0,170,255,0.4)} }
+    #blueDetectedList { position: absolute; top: 44px; right: 18px; width: 180px; z-index: 15; pointer-events: none; display: flex; flex-direction: column; gap: 4px; }
+    .blue-det-item { background: rgba(0,5,20,0.8); border: 1px solid rgba(0,170,255,0.2); border-left: 2px solid var(--blue); padding: 5px 8px; font-family: var(--mono); font-size: 9px; color: rgba(0,170,255,0.8); animation: blueItemIn 0.3s ease; letter-spacing: 1px; }
+    @keyframes blueItemIn { from{opacity:0;transform:translateX(12px)} to{opacity:1;transform:translateX(0)} }
     .blue-det-item .bdi-class { color: var(--blue-bright); font-size: 10px; }
     .blue-det-item .bdi-conf { color: rgba(0,170,255,0.45); font-size: 8px; }
-    #blueSonarCanvas {
-        position: absolute; bottom: 48px; right: 210px;
-        z-index: 15; pointer-events: none;
+    #blueSonarCanvas { position: absolute; bottom: 48px; right: 210px; z-index: 15; pointer-events: none; }
+
+    /* ══ AUDIO Heatmap label ══ */
+    #audioHeatLabel {
+        position: absolute; top: 64px; left: 15px; z-index: 20; display: none;
+        font-family: var(--mono); font-size: 8px; color: rgba(255,100,0,0.8);
+        letter-spacing: 2px; padding: 2px 6px;
+        background: rgba(0,5,20,0.7); border-left: 2px solid rgba(255,100,0,0.6);
     }
 </style>
 ```
@@ -322,6 +338,9 @@
 <canvas id="tapCanvas"></canvas>
 <canvas id="tgtCanvas"></canvas>
 <canvas id="blueCanvas"></canvas>
+<canvas id="audioHeatCanvas"></canvas>
+<canvas id="pixelCanvas"></canvas>
+
 <div id="scanlines"></div>
 <div id="scanlinesTgt"></div>
 <div id="scanlinesBlue"></div>
@@ -333,6 +352,8 @@
 <!-- MODE TRANSITION FX -->
 <div id="modeTransition"></div>
 <div id="modeScanWipe"></div>
+<div id="glitchBands"></div>
+<div id="rgbSplit"></div>
 
 <!-- MODE BUTTON -->
 <button id="modeToggle" class="mode-wc">
@@ -342,7 +363,7 @@
     </div>
 </button>
 
-<!-- MODE DOTS INDICATOR -->
+<!-- MODE DOTS -->
 <div id="modeDots">
     <div class="md-dot active-wc" id="dot-wc"></div>
     <div class="md-dot" id="dot-tgt"></div>
@@ -401,37 +422,46 @@
         <span id="blueTopTitle">SPECTRAL MODE</span>
         <span id="blueTopTime">--:--:--</span>
     </div>
-
     <div id="bluePingDot">
         <div class="ping-ring"></div>
         <div class="ping-ring"></div>
         <div class="ping-ring"></div>
         <div class="ping-center"></div>
     </div>
-
     <div id="blueDetectedList"></div>
-
     <canvas id="blueSonarCanvas" width="130" height="130"></canvas>
-
     <div id="blueSpectrumWrap">
         <div class="bsp-title">// spectral analysis</div>
         <div class="bsp-row"><span class="bsp-label">MOTION</span><div class="bsp-bar-bg"><div class="bsp-bar-fill" id="bspMotion" style="width:0%"></div></div><span class="bsp-val" id="bspMotionVal">0%</span></div>
         <div class="bsp-row"><span class="bsp-label">THERMAL</span><div class="bsp-bar-bg"><div class="bsp-bar-fill" id="bspThermal" style="width:0%"></div></div><span class="bsp-val" id="bspThermalVal">0%</span></div>
         <div class="bsp-row"><span class="bsp-label">DENSITY</span><div class="bsp-bar-bg"><div class="bsp-bar-fill" id="bspDensity" style="width:0%"></div></div><span class="bsp-val" id="bspDensityVal">0%</span></div>
         <div class="bsp-row"><span class="bsp-label">SIGNAL</span><div class="bsp-bar-bg"><div class="bsp-bar-fill" id="bspSignal" style="width:0%"></div></div><span class="bsp-val" id="bspSignalVal">0%</span></div>
-        <div class="bsp-row"><span class="bsp-label">TRACK</span><div class="bsp-bar-bg"><div class="bsp-bar-fill" id="bspTrack" style="width:0%"></div></div><span class="bsp-val" id="bspTrackVal">0%</span></div>
+        <div class="bsp-row"><span class="bsp-label">AUDIO</span><div class="bsp-bar-bg"><div class="bsp-bar-fill" id="bspAudio" style="width:0%"></div></div><span class="bsp-val" id="bspAudioVal">0%</span></div>
     </div>
-
     <canvas id="blueWaveCanvas" width="300" height="60"></canvas>
-
     <div id="blueTerminal"></div>
-
     <div id="botbarBLUE">
         <span id="blueCoordsL">SPEC:ACTIVE</span>
         <span id="blueCenterStat">◈ SPECTRAL TRACKING ◈</span>
         <span id="blueCoordsR">OBJ:00</span>
     </div>
 </div>
+
+<!-- Audio indicator -->
+<div id="audioIndicator">
+    MIC:ACTIVE
+    <span class="aud-bars">
+        <span class="aud-bar" id="ab0"></span>
+        <span class="aud-bar" id="ab1"></span>
+        <span class="aud-bar" id="ab2"></span>
+        <span class="aud-bar" id="ab3"></span>
+        <span class="aud-bar" id="ab4"></span>
+        <span class="aud-bar" id="ab5"></span>
+        <span class="aud-bar" id="ab6"></span>
+    </span>
+</div>
+<div id="audioHeatLabel">⬡ AUDIO HEATMAP ACTIVE</div>
+<button id="bluePixelBtn">⬡ PIXEL GLITCH</button>
 ```
 
 </div>
@@ -481,9 +511,12 @@ void main(){
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3"></script>
 
 <script>
+/* ══════════════════════════════════════════════════════
+   myWLK v2 — Audio Neural Net + Pixelization + Glitch FX
+══════════════════════════════════════════════════════ */
+
 const MODES = ['wc', 'tgt', 'blue'];
 const MODE_LABELS = { wc: 'TARGET MODE', tgt: 'BLUE MODE', blue: 'WHITE MODE' };
-
 const THREAT_HIGH   = ['person','car','truck','bus','motorcycle','airplane','boat','train'];
 const THREAT_MEDIUM = ['bicycle','horse','cow','dog','cat','bird','sheep','bear','elephant','zebra','giraffe'];
 function getThreat(c){return THREAT_HIGH.includes(c)?'HIGH':THREAT_MEDIUM.includes(c)?'MED':'LOW';}
@@ -496,25 +529,283 @@ const tgtCanvas  = document.getElementById('tgtCanvas');
 const tgtCtx     = tgtCanvas.getContext('2d');
 const blueCanvas = document.getElementById('blueCanvas');
 const blueCtx    = blueCanvas.getContext('2d');
+const audioHeatCanvas = document.getElementById('audioHeatCanvas');
+const audioHeatCtx    = audioHeatCanvas.getContext('2d');
+const pixelCanvas = document.getElementById('pixelCanvas');
+const pixelCtx    = pixelCanvas.getContext('2d');
 
 let model=null, allPredictions=[], currentMode='wc', systemReady=false;
-let gl=null,glProg=null,uRectsLoc,uCountLoc,uRevIdxLoc,uRevProgLoc;
+let gl=null, glProg=null, uRectsLoc, uCountLoc, uRevIdxLoc, uRevProgLoc;
 let wcEwLevel=0, revealIndex=-1, revealProgress=0, revealTimer=null;
 let frameCount=0, lastFpsTime=performance.now(), fps=30;
 let tgtPrimary=null;
-let cPos={x:innerWidth/2,y:innerHeight/2};
-let tgtPos={x:innerWidth/2,y:innerHeight/2,active:false};
+let cPos={x:innerWidth/2, y:innerHeight/2};
+let tgtPos={x:innerWidth/2, y:innerHeight/2, active:false};
 let isLocked=false, lockFactor=0, pulseTime=0, scanAngle=0, textTick=0;
 let infoLines=[], glitchActive=0;
 let captureCount=0, cardVisible=false;
 let tgtEwI=0, tgtEwTimer=0, tgtRunning=false;
 let blueRunning=false;
 let blueWavePhase=0, blueSonarAngle=0;
-let blueSpecValues={motion:0,thermal:0,density:0,signal:0,track:0};
+let blueSpecValues={motion:0, thermal:0, density:0, signal:0, audio:0};
 let lat=55.7558+(Math.random()-.5)*.01, lon=37.6173+(Math.random()-.5)*.01;
 let isTransitioning=false;
 
-/* ════ START ════ */
+/* ══ AUDIO NEURAL NET ══ */
+let audioCtx=null, analyser=null, audioData=null;
+let audioStream=null, audioActive=false;
+let audioLevels=[0,0,0,0,0,0,0]; // for indicator bars
+let heatGrid=null; // audio heatmap grid
+const HEAT_COLS=32, HEAT_ROWS=18;
+
+async function initAudio() {
+    try {
+        audioStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const source = audioCtx.createMediaStreamSource(audioStream);
+        analyser = audioCtx.createAnalyser();
+        analyser.fftSize = 256;
+        analyser.smoothingTimeConstant = 0.82;
+        source.connect(analyser);
+        audioData = new Uint8Array(analyser.frequencyBinCount);
+        audioActive = true;
+
+        // Init heatmap grid
+        heatGrid = Array.from({length: HEAT_ROWS}, () => new Float32Array(HEAT_COLS));
+
+        addLogBlue('🎙 MIC NEURAL LINK ESTABLISHED');
+        addLogBlue('⬡ AUDIO HEATMAP: ONLINE');
+        document.getElementById('audioIndicator').style.display = 'block';
+        document.getElementById('audioHeatLabel').style.display = 'block';
+        audioHeatCanvas.style.display = 'block';
+    } catch(e) {
+        addLogBlue('⚠ MIC ACCESS DENIED — AUDIO OFFLINE');
+    }
+}
+
+function getAudioEnergy() {
+    if (!analyser || !audioData) return { total: 0, bass: 0, mid: 0, high: 0, bins: [] };
+    analyser.getByteFrequencyData(audioData);
+    const bins = audioData.length;
+    let bass=0, mid=0, high=0;
+    const b1 = Math.floor(bins*0.1), b2 = Math.floor(bins*0.4);
+    for(let i=0; i<b1; i++) bass += audioData[i];
+    for(let i=b1; i<b2; i++) mid += audioData[i];
+    for(let i=b2; i<bins; i++) high += audioData[i];
+    bass /= (b1 * 255);
+    mid  /= ((b2-b1) * 255);
+    high /= ((bins-b2) * 255);
+    const total = (bass*0.5 + mid*0.3 + high*0.2);
+    return { total, bass, mid, high, bins: Array.from(audioData) };
+}
+
+function updateAudioHeatmap(energy) {
+    if (!heatGrid) return;
+    // Shift heatmap left (time scrolling)
+    for(let r=0; r<HEAT_ROWS; r++) {
+        for(let c=0; c<HEAT_COLS-1; c++) {
+            heatGrid[r][c] = heatGrid[r][c+1] * 0.93;
+        }
+    }
+    // Fill rightmost column with frequency data mapped to rows
+    if (analyser && audioData) {
+        analyser.getByteFrequencyData(audioData);
+        for(let r=0; r<HEAT_ROWS; r++) {
+            const binIdx = Math.floor((r / HEAT_ROWS) * audioData.length);
+            heatGrid[r][HEAT_COLS-1] = audioData[binIdx] / 255;
+        }
+    }
+    drawAudioHeatmap(energy);
+}
+
+function drawAudioHeatmap(energy) {
+    const W = audioHeatCanvas.width;
+    const H = audioHeatCanvas.height;
+    audioHeatCtx.clearRect(0,0,W,H);
+    if (!heatGrid) return;
+
+    const cellW = W / HEAT_COLS;
+    const cellH = H / HEAT_ROWS;
+
+    for(let r=0; r<HEAT_ROWS; r++) {
+        for(let c=0; c<HEAT_COLS; c++) {
+            const v = heatGrid[r][c];
+            if (v < 0.04) continue;
+            // Map value to thermal color: blue → cyan → green → yellow → red
+            let R=0, G=0, B=0;
+            if (v < 0.25) {
+                R=0; G=Math.round(v/0.25*100); B=255;
+            } else if (v < 0.5) {
+                const t=(v-0.25)/0.25;
+                R=0; G=Math.round(100+t*155); B=Math.round(255*(1-t));
+            } else if (v < 0.75) {
+                const t=(v-0.5)/0.25;
+                R=Math.round(t*255); G=255; B=0;
+            } else {
+                const t=(v-0.75)/0.25;
+                R=255; G=Math.round(255*(1-t)); B=0;
+            }
+            const alpha = 0.25 + v * 0.55;
+            audioHeatCtx.fillStyle = `rgba(${R},${G},${B},${alpha})`;
+            audioHeatCtx.fillRect(c*cellW, r*cellH, cellW+1, cellH+1);
+        }
+    }
+
+    // Vertical frequency lines overlay (bass pulse)
+    if (energy.bass > 0.3) {
+        const bassAlpha = (energy.bass - 0.3) * 0.8;
+        audioHeatCtx.fillStyle = `rgba(255,80,0,${bassAlpha * 0.15})`;
+        audioHeatCtx.fillRect(0, 0, W, H);
+    }
+
+    // Draw audio waveform line on top
+    if (analyser && audioData) {
+        const waveData = new Uint8Array(analyser.fftSize);
+        analyser.getByteTimeDomainData(waveData);
+        audioHeatCtx.beginPath();
+        audioHeatCtx.strokeStyle = `rgba(0,220,255,${0.4 + energy.total * 0.5})`;
+        audioHeatCtx.lineWidth = 1.5;
+        audioHeatCtx.shadowBlur = 8;
+        audioHeatCtx.shadowColor = 'rgba(0,170,255,0.7)';
+        for(let i=0; i<waveData.length; i++) {
+            const x = (i/waveData.length)*W;
+            const y = ((waveData[i]/128.0)-1.0)*H*0.08 + H*0.5;
+            i===0 ? audioHeatCtx.moveTo(x,y) : audioHeatCtx.lineTo(x,y);
+        }
+        audioHeatCtx.stroke();
+        audioHeatCtx.shadowBlur=0;
+    }
+}
+
+function updateAudioBars(energy) {
+    if (!audioActive) return;
+    // 7 bars from freq data
+    for(let i=0; i<7; i++) {
+        const bar = document.getElementById('ab'+i);
+        if (!bar) continue;
+        const binStart = Math.floor((i/7)*audioData.length);
+        const binEnd   = Math.floor(((i+1)/7)*audioData.length);
+        let sum=0;
+        for(let b=binStart; b<binEnd; b++) sum += audioData[b];
+        const val = sum / ((binEnd-binStart)*255);
+        audioLevels[i] = audioLevels[i]*0.7 + val*0.3;
+        bar.style.height = Math.max(2, audioLevels[i]*12) + 'px';
+    }
+}
+
+/* ══ PIXELIZATION + GLITCH (Blue Mode) ══ */
+let pixelGlitchActive = false;
+let pixelGlitchTimer = 0;
+let pixelGlitchLevel = 0;
+let pixelSize = 1;
+let pixelTargetSize = 1;
+let pixelPhase = 0;
+
+function triggerPixelGlitch() {
+    pixelGlitchActive = true;
+    pixelGlitchTimer = 90; // frames
+    pixelCanvas.style.opacity = '1';
+    document.getElementById('bluePixelBtn').classList.add('glitching');
+    addLogBlue('⬡ PIXEL DISRUPT INITIATED');
+}
+
+function updatePixelization(audioEnergy) {
+    if (!blueRunning) return;
+
+    pixelCanvas.width  = innerWidth;
+    pixelCanvas.height = innerHeight;
+    pixelCtx.clearRect(0,0,pixelCanvas.width,pixelCanvas.height);
+
+    pixelPhase += 0.05;
+
+    // Auto-trigger on loud sounds
+    if (audioActive && audioEnergy && audioEnergy.bass > 0.6 && !pixelGlitchActive) {
+        if (Math.random() > 0.85) triggerPixelGlitch();
+    }
+
+    if (pixelGlitchActive) {
+        pixelGlitchTimer--;
+        if (pixelGlitchTimer <= 0) {
+            pixelGlitchActive = false;
+            pixelCanvas.style.opacity = '0';
+            document.getElementById('bluePixelBtn').classList.remove('glitching');
+            pixelGlitchLevel = 0;
+        } else {
+            const progress = 1 - pixelGlitchTimer / 90;
+            // Easing: spike then decay
+            pixelGlitchLevel = progress < 0.3
+                ? progress/0.3
+                : 1 - (progress-0.3)/0.7;
+        }
+    } else {
+        // Subtle ambient pixel shimmer based on audio
+        pixelGlitchLevel = audioActive && audioEnergy ? audioEnergy.total * 0.25 : 0;
+        if (pixelGlitchLevel < 0.05) { pixelCtx.clearRect(0,0,pixelCanvas.width,pixelCanvas.height); return; }
+        pixelCanvas.style.opacity = String(pixelGlitchLevel * 0.6);
+    }
+
+    const W = pixelCanvas.width, H = pixelCanvas.height;
+    const level = pixelGlitchLevel;
+
+    // Pixelization blocks
+    const pSize = Math.max(4, Math.round(4 + level * 28));
+    const cols = Math.ceil(W/pSize), rows = Math.ceil(H/pSize);
+
+    for(let r=0; r<rows; r++) {
+        for(let c=0; c<cols; c++) {
+            if(Math.random() > level * 0.7 + 0.15) continue;
+            const hue = 180 + Math.random()*40 - 20;
+            const alpha = level * 0.35 * Math.random();
+            const sat = 80 + Math.random()*20;
+            pixelCtx.fillStyle = `hsla(${hue},${sat}%,${40+Math.random()*40}%,${alpha})`;
+            pixelCtx.fillRect(c*pSize, r*pSize, pSize, pSize);
+        }
+    }
+
+    // Horizontal glitch bands
+    const bandCount = Math.round(level * 8);
+    for(let i=0; i<bandCount; i++) {
+        const y = Math.random() * H;
+        const bh = 2 + Math.random() * 12;
+        const bw = (0.2 + Math.random()*0.8) * W;
+        const bx = Math.random() * (W - bw);
+        const offsetX = (Math.random()-0.5) * level * 40;
+        const alpha = level * 0.5 * Math.random();
+
+        // RGB split effect
+        pixelCtx.fillStyle = `rgba(0,200,255,${alpha})`;
+        pixelCtx.fillRect(bx + offsetX - 4, y, bw, bh);
+        pixelCtx.fillStyle = `rgba(255,0,100,${alpha})`;
+        pixelCtx.fillRect(bx + offsetX + 4, y, bw, bh);
+        pixelCtx.fillStyle = `rgba(0,255,180,${alpha*0.7})`;
+        pixelCtx.fillRect(bx + offsetX, y, bw, bh*0.5);
+    }
+
+    // Vertical tears
+    if(level > 0.4) {
+        const tears = Math.round(level * 5);
+        for(let i=0; i<tears; i++) {
+            const x = Math.random() * W;
+            const tw = 1 + Math.random() * 4;
+            const ty = Math.random() * H;
+            const th = 20 + Math.random() * 100;
+            pixelCtx.fillStyle = `rgba(0,${150+Math.random()*105},255,${level*0.6})`;
+            pixelCtx.fillRect(x, ty, tw, th);
+        }
+    }
+
+    // Digital noise overlay
+    if(level > 0.5) {
+        const noiseCount = Math.round(level * 200);
+        for(let i=0; i<noiseCount; i++) {
+            const nx = Math.random()*W, ny = Math.random()*H;
+            pixelCtx.fillStyle = `rgba(0,200,255,${Math.random()*level*0.4})`;
+            pixelCtx.fillRect(nx, ny, 1+Math.random()*2, 1);
+        }
+    }
+}
+
+/* ══ START ══ */
 document.getElementById('startBtn').onclick = async () => {
     const btn = document.getElementById('startBtn');
     btn.style.opacity = '0';
@@ -547,7 +838,11 @@ document.getElementById('startBtn').onclick = async () => {
     }
 };
 
-/* ════ MODE SWITCH WITH ANIMATION ════ */
+document.getElementById('bluePixelBtn').onclick = () => {
+    triggerPixelGlitch();
+};
+
+/* ══ MODE SWITCH WITH ENHANCED GLITCH ══ */
 document.getElementById('modeToggle').onclick = () => {
     if(isTransitioning) return;
     const idx = MODES.indexOf(currentMode);
@@ -555,58 +850,138 @@ document.getElementById('modeToggle').onclick = () => {
     setMode(next, true);
 };
 
+function buildGlitchBands(toMode) {
+    const gb = document.getElementById('glitchBands');
+    gb.innerHTML = '';
+    const count = 8 + Math.floor(Math.random()*6);
+    for(let i=0; i<count; i++) {
+        const band = document.createElement('div');
+        band.className = 'gb-band';
+        const h = 2 + Math.random()*18;
+        const top = Math.random()*100;
+        const delay = Math.random()*0.25;
+        const dur = 0.08 + Math.random()*0.12;
+        const tx = (Math.random()-0.5) * 60;
+        band.style.cssText = `
+            top: ${top}%;
+            height: ${h}px;
+            animation: gbSlide ${dur}s ${delay}s steps(1) both;
+            transform: translateX(${tx}px);
+        `;
+        gb.appendChild(band);
+    }
+
+    // Inject keyframe if not exist
+    if (!document.getElementById('gbKf')) {
+        const s = document.createElement('style');
+        s.id = 'gbKf';
+        s.textContent = `
+            @keyframes gbSlide {
+                0%{opacity:1;transform:translateX(var(--tx,0))}
+                50%{opacity:0.5;transform:translateX(calc(var(--tx,0)*-1))}
+                100%{opacity:0}
+            }
+        `;
+        document.head.appendChild(s);
+    }
+}
+
+function runGlitchTransition(toMode) {
+    // Canvas glitch flash
+    const gc = document.createElement('canvas');
+    gc.width = innerWidth; gc.height = innerHeight;
+    gc.style.cssText = 'position:absolute;inset:0;z-index:203;pointer-events:none;';
+    document.getElementById('container').appendChild(gc);
+    const gx = gc.getContext('2d');
+
+    const colors = { wc: [0,255,65], tgt: [255,32,32], blue: [0,170,255] };
+    const col = colors[toMode] || [255,255,255];
+    let frame = 0;
+    const totalFrames = 22;
+
+    function glitchFrame() {
+        gx.clearRect(0,0,gc.width,gc.height);
+        const progress = frame/totalFrames;
+        const intensity = frame < 8 ? frame/8 : (1 - (frame-8)/14);
+
+        // Random horizontal slices with RGB shift
+        const slices = Math.round(3 + intensity*12);
+        for(let i=0; i<slices; i++) {
+            const y = Math.random()*gc.height;
+            const h = 1 + Math.random()*20;
+            const tx = (Math.random()-0.5)*intensity*80;
+            const a = intensity * (0.2 + Math.random()*0.4);
+
+            gx.fillStyle = `rgba(${col[0]},${col[1]},${col[2]},${a})`;
+            gx.fillRect(tx, y, gc.width, h);
+
+            // Chromatic aberration on slices
+            gx.fillStyle = `rgba(255,0,100,${a*0.5})`;
+            gx.fillRect(tx-6, y, gc.width, h*0.4);
+            gx.fillStyle = `rgba(0,255,220,${a*0.5})`;
+            gx.fillRect(tx+6, y, gc.width, h*0.4);
+        }
+
+        // Block corruption
+        if(intensity > 0.4) {
+            for(let i=0; i<Math.round(intensity*20); i++) {
+                const bx = Math.random()*gc.width;
+                const by = Math.random()*gc.height;
+                const bw = 10 + Math.random()*60;
+                const bh = 4 + Math.random()*20;
+                gx.fillStyle = `rgba(${col[0]},${col[1]},${col[2]},${intensity*0.3})`;
+                gx.fillRect(bx, by, bw, bh);
+            }
+        }
+
+        // Scanline interference
+        if(intensity > 0.3) {
+            for(let y=0; y<gc.height; y+=3) {
+                if(Math.random() > 0.7) continue;
+                gx.fillStyle = `rgba(0,0,0,${intensity*0.15})`;
+                gx.fillRect(0, y, gc.width, 1);
+            }
+        }
+
+        frame++;
+        if(frame < totalFrames) requestAnimationFrame(glitchFrame);
+        else { gc.remove(); }
+    }
+    glitchFrame();
+}
+
 function triggerModeTransition(toMode, cb) {
     isTransitioning = true;
-    const overlay   = document.getElementById('modeTransition');
-    const scanWipe  = document.getElementById('modeScanWipe');
-    const cls       = 'to-' + toMode;
+    const overlay  = document.getElementById('modeTransition');
+    const scanWipe = document.getElementById('modeScanWipe');
+    const gb       = document.getElementById('glitchBands');
+    const rgb      = document.getElementById('rgbSplit');
+    const cls      = 'to-' + toMode;
 
-    // Flash overlay
+    // Standard flash
     overlay.className = 'active ' + cls;
     scanWipe.className = 'active ' + cls;
 
-    // Pixel dissolve effect on blueCanvas briefly
-    if(blueCanvas.style.display !== 'none' || toMode === 'blue') {
-        flashPixelDissolve(toMode);
-    }
+    // NEW: Glitch bands
+    gb.className = 'active ' + cls;
+    buildGlitchBands(toMode);
+
+    // NEW: RGB split overlay
+    rgb.style.background = `rgba(${toMode==='wc'?'0,255,65':toMode==='tgt'?'255,32,32':'0,170,255'},0.08)`;
+    rgb.className = 'active';
+
+    // NEW: Canvas-based glitch animation
+    runGlitchTransition(toMode);
 
     setTimeout(() => {
         overlay.className = '';
         scanWipe.className = '';
+        gb.className = '';
+        rgb.className = '';
         isTransitioning = false;
-        if(cb) cb();
-    }, 580);
+    }, 700);
 
-    // Switch actual mode after ~120ms (mid-flash)
-    setTimeout(cb, 90);
-}
-
-function flashPixelDissolve(mode) {
-    const c = document.createElement('canvas');
-    c.width = innerWidth; c.height = innerHeight;
-    c.style.cssText = 'position:absolute;inset:0;z-index:198;pointer-events:none;';
-    document.getElementById('container').appendChild(c);
-    const cx = c.getContext('2d');
-    const colors = { wc: '0,255,65', tgt: '255,32,32', blue: '0,170,255' };
-    const col = colors[mode] || '255,255,255';
-    let alpha = 0.35;
-    function step() {
-        cx.clearRect(0,0,c.width,c.height);
-        // Draw random pixel grid
-        const gs = 6;
-        for(let y=0; y<c.height; y+=gs) {
-            for(let x=0; x<c.width; x+=gs) {
-                if(Math.random() > 0.55) {
-                    cx.fillStyle = `rgba(${col},${alpha * Math.random()})`;
-                    cx.fillRect(x,y,gs,gs);
-                }
-            }
-        }
-        alpha -= 0.018;
-        if(alpha > 0) requestAnimationFrame(step);
-        else c.remove();
-    }
-    step();
+    setTimeout(cb, 100);
 }
 
 function setMode(mode, animated) {
@@ -639,13 +1014,17 @@ function applyMode(mode) {
     vig.style.display='none'; vigB.style.display='none';
     video.className='';
     tgtRunning=false; blueRunning=false;
+    audioHeatCanvas.style.display='none';
+    pixelCanvas.style.opacity='0';
+    document.getElementById('audioIndicator').style.display='none';
+    document.getElementById('audioHeatLabel').style.display='none';
+    document.getElementById('bluePixelBtn').style.display='none';
 
-    // Update dots
+    // Dots
     document.getElementById('dot-wc').className   = 'md-dot' + (mode==='wc'?' active-wc':'');
     document.getElementById('dot-tgt').className  = 'md-dot' + (mode==='tgt'?' active-tgt':'');
     document.getElementById('dot-blue').className = 'md-dot' + (mode==='blue'?' active-blue':'');
 
-    // Next mode label
     const nextIdx = (MODES.indexOf(mode)+1) % MODES.length;
     btnTxt.textContent = MODE_LABELS[mode];
 
@@ -676,10 +1055,20 @@ function applyMode(mode) {
         blueRunning=true; drawBlue();
         addLogBlue("◈ SPECTRAL MODE ONLINE");
         addLogBlue("⬡ SCANNING ENVIRONMENT...");
+        document.getElementById('bluePixelBtn').style.display='block';
+
+        // Init audio if not already
+        if(!audioActive) {
+            initAudio();
+        } else {
+            audioHeatCanvas.style.display='block';
+            document.getElementById('audioIndicator').style.display='block';
+            document.getElementById('audioHeatLabel').style.display='block';
+        }
     }
 }
 
-/* ════ DETECT LOOP ════ */
+/* ══ DETECT LOOP ══ */
 async function detectLoop(){
     if(model&&video.readyState>=3&&video.videoWidth>0){
         try{allPredictions=await model.detect(video);}catch(e){}
@@ -697,11 +1086,11 @@ async function detectLoop(){
     setTimeout(detectLoop,65);
 }
 
-/* ════ WEBGL ════ */
+/* ══ WEBGL ══ */
 function initWebGL(){
     const c=document.getElementById('webglCanvas');
     gl=c.getContext('webgl'); if(!gl)return;
-    function mkS(t,src){const s=gl.createShader(t);gl.shaderSource(s,src);gl.compileShader(s);if(!gl.getShaderParameter(s,gl.COMPILE_STATUS))console.error(gl.getShaderInfoLog(s));return s;}
+    function mkS(t,src){const s=gl.createShader(t);gl.shaderSource(s,src);gl.compileShader(s);return s;}
     glProg=gl.createProgram();
     gl.attachShader(glProg,mkS(gl.VERTEX_SHADER,document.getElementById('vs').text));
     gl.attachShader(glProg,mkS(gl.FRAGMENT_SHADER,document.getElementById('fs').text));
@@ -834,7 +1223,7 @@ function addLogWC(msg){
     if(t.childNodes.length>8)t.removeChild(t.firstChild);t.scrollTop=t.scrollHeight;
 }
 
-/* ════ TARGET MODE ════ */
+/* ══ TARGET MODE ══ */
 function processTGTDetection(){
     const p=tgtPrimary;
     if(p){
@@ -1014,23 +1403,41 @@ function drawCornerDeco(ctx,W,H,dpr){
     ctx.beginPath();ctx.moveTo(0,H/2);ctx.lineTo(W,H/2);ctx.moveTo(W/2,0);ctx.lineTo(W/2,H);ctx.stroke();ctx.setLineDash([]);
 }
 
-/* ════ BLUE SPECTRAL MODE ════ */
+/* ══ BLUE SPECTRAL MODE ══ */
 function processBlueDetection() {
     const count = allPredictions.length;
-    // Update spectrum bars with animated targets
+
+    // Get audio energy
+    const energy = audioActive ? getAudioEnergy() : {total:0, bass:0, mid:0, high:0, bins:[]};
+
+    // Update audio heatmap
+    if(audioActive) {
+        updateAudioHeatmap(energy);
+        updateAudioBars(energy);
+
+        // Update audio spectrum bar
+        const audioLevel = Math.round(energy.total * 100);
+        const bspAudio = document.getElementById('bspAudio');
+        const bspAudioVal = document.getElementById('bspAudioVal');
+        if(bspAudio) bspAudio.style.width = audioLevel + '%';
+        if(bspAudioVal) bspAudioVal.textContent = audioLevel + '%';
+        blueSpecValues.audio = energy.total * 100;
+    }
+
+    // Pixelization update
+    updatePixelization(audioActive ? energy : null);
+
     const tgt = {
-        motion:  count > 0 ? Math.min(100, 30 + count * 18 + Math.random()*15) : Math.max(0, blueSpecValues.motion - 2),
-        thermal: count > 0 ? Math.min(100, 20 + count * 12 + Math.random()*10) : Math.max(0, blueSpecValues.thermal - 1.5),
-        density: count > 0 ? Math.min(100, count * 22 + Math.random()*20)       : Math.max(0, blueSpecValues.density - 1),
-        signal:  Math.min(100, 40 + Math.sin(Date.now()/1400)*30 + Math.random()*10),
-        track:   count > 0 ? Math.min(100, tgtPrimary ? 70 + tgtPrimary.score*28 : 30) : Math.max(0, blueSpecValues.track - 3)
+        motion:  count > 0 ? Math.min(100, 30 + count*18 + Math.random()*15) : Math.max(0, blueSpecValues.motion - 2),
+        thermal: count > 0 ? Math.min(100, 20 + count*12 + Math.random()*10) : Math.max(0, blueSpecValues.thermal - 1.5),
+        density: count > 0 ? Math.min(100, count*22 + Math.random()*20)       : Math.max(0, blueSpecValues.density - 1),
+        signal:  Math.min(100, 40 + Math.sin(Date.now()/1400)*30 + Math.random()*10)
     };
     const lerp = (a,b,t)=>a+(b-a)*t;
     blueSpecValues.motion  = lerp(blueSpecValues.motion,  tgt.motion,  0.08);
     blueSpecValues.thermal = lerp(blueSpecValues.thermal, tgt.thermal, 0.06);
     blueSpecValues.density = lerp(blueSpecValues.density, tgt.density, 0.05);
     blueSpecValues.signal  = lerp(blueSpecValues.signal,  tgt.signal,  0.12);
-    blueSpecValues.track   = lerp(blueSpecValues.track,   tgt.track,   0.07);
 
     const set = (id, val) => {
         const v = Math.round(val);
@@ -1043,9 +1450,7 @@ function processBlueDetection() {
     set('bspThermal', blueSpecValues.thermal);
     set('bspDensity', blueSpecValues.density);
     set('bspSignal',  blueSpecValues.signal);
-    set('bspTrack',   blueSpecValues.track);
 
-    // Update detected list
     const list = document.getElementById('blueDetectedList');
     if(list) {
         list.innerHTML = '';
@@ -1058,9 +1463,8 @@ function processBlueDetection() {
     }
     document.getElementById('blueCoordsR').textContent = `OBJ:${String(count).padStart(2,'0')}`;
 
-    if(count > 0 && Math.random() > 0.9) {
-        addLogBlue(`⬡ ${allPredictions[0].class.toUpperCase()} | SPEC:${Math.round(blueSpecValues.signal)}%`);
-    }
+    if(count > 0 && Math.random() > 0.9) addLogBlue(`⬡ ${allPredictions[0].class.toUpperCase()} | SPEC:${Math.round(blueSpecValues.signal)}%`);
+    if(audioActive && energy.bass > 0.5 && Math.random() > 0.92) addLogBlue(`🎙 BASS SPIKE: ${Math.round(energy.bass*100)}%`);
 }
 
 function addLogBlue(msg) {
@@ -1082,25 +1486,27 @@ function drawBlue() {
     blueWavePhase  += 0.04;
     blueSonarAngle += 0.025;
 
-    // Blue bounding boxes for detected objects
+    // Resize audio/pixel canvases
+    audioHeatCanvas.width  = innerWidth;
+    audioHeatCanvas.height = innerHeight;
+    pixelCanvas.width  = innerWidth;
+    pixelCanvas.height = innerHeight;
+
     if(video.videoWidth > 0) {
         const sX = innerWidth  / video.videoWidth;
         const sY = innerHeight / video.videoHeight;
-
         allPredictions.forEach((p, i) => {
             const [bx, by, bw, bh] = p.bbox;
             const rx = bx*sX*dpr, ry = by*sY*dpr, rw = bw*sX*dpr, rh = bh*sY*dpr;
             const alpha = 0.5 + 0.3 * Math.sin(Date.now()/300 + i);
             const isFirst = i === 0;
 
-            // Outer glow rect
             ctx.shadowBlur = isFirst ? 18 : 8;
             ctx.shadowColor = isFirst ? 'rgba(0,170,255,0.8)' : 'rgba(0,120,200,0.5)';
             ctx.strokeStyle = isFirst ? `rgba(68,204,255,${alpha})` : `rgba(0,150,220,${alpha*0.7})`;
             ctx.lineWidth = isFirst ? 2*dpr : 1.2*dpr;
             ctx.strokeRect(rx, ry, rw, rh);
 
-            // Inner thin rect
             ctx.shadowBlur = 0;
             ctx.strokeStyle = `rgba(0,170,255,${alpha*0.3})`;
             ctx.lineWidth = 0.5*dpr;
@@ -1108,7 +1514,6 @@ function drawBlue() {
             ctx.strokeRect(rx+4*dpr, ry+4*dpr, rw-8*dpr, rh-8*dpr);
             ctx.setLineDash([]);
 
-            // Corner brackets
             const cl = Math.min(rw,rh)*0.2;
             ctx.strokeStyle = isFirst ? `rgba(68,204,255,${0.8+alpha*0.2})` : `rgba(0,170,255,0.5)`;
             ctx.lineWidth = isFirst ? 2.5*dpr : 1.5*dpr;
@@ -1121,22 +1526,19 @@ function drawBlue() {
             ctx.moveTo(rx+cl,ry+rh); ctx.lineTo(rx,ry+rh); ctx.lineTo(rx,ry+rh-cl);
             ctx.stroke();
 
-            // Fill
             ctx.fillStyle = `rgba(0,80,180,${0.04 + (isFirst?0.04:0)})`;
             ctx.fillRect(rx, ry, rw, rh);
 
-            // Label
             ctx.shadowBlur = 6; ctx.shadowColor = 'rgba(0,170,255,0.8)';
             ctx.fillStyle = isFirst ? 'rgba(68,204,255,0.95)' : 'rgba(0,170,255,0.7)';
             ctx.font = `${isFirst?11:9}px 'Share Tech Mono'`;
             ctx.fillText(p.class.toUpperCase() + ' ' + Math.round(p.score*100)+'%', rx+6*dpr, ry-5*dpr);
 
-            // Hexagonal scan marker for primary
             if(isFirst) {
                 const cx4=rx+rw/2, cy4=ry+rh/2;
                 ctx.save(); ctx.translate(cx4,cy4);
                 ctx.rotate(Date.now()/1000);
-                ctx.strokeStyle=`rgba(68,204,255,${0.4})`;
+                ctx.strokeStyle=`rgba(68,204,255,0.4)`;
                 ctx.lineWidth=dpr; ctx.shadowBlur=8;
                 const r2=Math.min(rw,rh)*0.35;
                 ctx.beginPath();
@@ -1147,16 +1549,9 @@ function drawBlue() {
         });
     }
 
-    // Sonar mini display (bottom right area via canvas)
     drawBlueSonar();
-
-    // Wave display
     drawBlueWave();
-
-    // Full-screen grid overlay
     drawBlueGrid(ctx, W, H, dpr);
-
-    // Corner decorations
     drawBlueCorners(ctx, W, H, dpr);
 
     requestAnimationFrame(drawBlue);
@@ -1165,67 +1560,48 @@ function drawBlue() {
 function drawBlueSonar() {
     const c = document.getElementById('blueSonarCanvas');
     const ctx = c.getContext('2d');
-    const W = 130, H = 130, cx = 65, cy = 65, R = 55;
+    const W=130, H=130, cx=65, cy=65, R=55;
     ctx.clearRect(0,0,W,H);
-    ctx.fillStyle='rgba(0,5,20,0.85)';ctx.fillRect(0,0,W,H);
-
-    // Concentric rings
-    for(let r=R/4; r<=R; r+=R/4) {
+    ctx.fillStyle='rgba(0,5,20,0.85)'; ctx.fillRect(0,0,W,H);
+    for(let r=R/4; r<=R; r+=R/4){
         ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2);
         ctx.strokeStyle=`rgba(0,120,200,${r===R?0.4:0.18})`;
         ctx.lineWidth=0.7; ctx.stroke();
     }
-    // Cross hairs
-    ctx.strokeStyle='rgba(0,120,200,0.25)';ctx.lineWidth=0.5;
-    ctx.beginPath();ctx.moveTo(cx-R,cy);ctx.lineTo(cx+R,cy);ctx.moveTo(cx,cy-R);ctx.lineTo(cx,cy+R);ctx.stroke();
-
-    // Sonar sweep
+    ctx.strokeStyle='rgba(0,120,200,0.25)'; ctx.lineWidth=0.5;
+    ctx.beginPath(); ctx.moveTo(cx-R,cy); ctx.lineTo(cx+R,cy); ctx.moveTo(cx,cy-R); ctx.lineTo(cx,cy+R); ctx.stroke();
     ctx.save(); ctx.translate(cx,cy); ctx.rotate(blueSonarAngle);
-    const sg=ctx.createConicalGradient?null:null; // fallback
-    // sweep pie
-    ctx.beginPath();
-    ctx.moveTo(0,0);
-    ctx.arc(0,0,R,-0.3,0);
-    ctx.closePath();
+    ctx.beginPath(); ctx.moveTo(0,0); ctx.arc(0,0,R,-0.3,0); ctx.closePath();
     const gr=ctx.createLinearGradient(0,-R,0,0);
-    gr.addColorStop(0,'rgba(0,170,255,0)');
-    gr.addColorStop(1,'rgba(0,170,255,0.25)');
-    ctx.fillStyle=gr;ctx.fill();
-    ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(R,0);
-    ctx.strokeStyle='rgba(0,200,255,0.7)';ctx.lineWidth=1.5;
-    ctx.shadowBlur=8;ctx.shadowColor='rgba(0,170,255,0.9)';
-    ctx.stroke();
+    gr.addColorStop(0,'rgba(0,170,255,0)'); gr.addColorStop(1,'rgba(0,170,255,0.25)');
+    ctx.fillStyle=gr; ctx.fill();
+    ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(R,0);
+    ctx.strokeStyle='rgba(0,200,255,0.7)'; ctx.lineWidth=1.5;
+    ctx.shadowBlur=8; ctx.shadowColor='rgba(0,170,255,0.9)'; ctx.stroke();
     ctx.restore();
-
-    // Blips for detections
     allPredictions.slice(0,6).forEach((p,i)=>{
         const angle=i*1.1+blueSonarAngle*0.3;
         const dist=(0.3+i*0.1)*R;
         const bx=cx+Math.cos(angle)*dist, by=cy+Math.sin(angle)*dist;
-        ctx.beginPath();ctx.arc(bx,by,3,0,Math.PI*2);
+        ctx.beginPath(); ctx.arc(bx,by,3,0,Math.PI*2);
         ctx.fillStyle='rgba(0,220,255,0.9)';
-        ctx.shadowBlur=8;ctx.shadowColor='rgba(0,170,255,1)';
-        ctx.fill();ctx.shadowBlur=0;
+        ctx.shadowBlur=8; ctx.shadowColor='rgba(0,170,255,1)';
+        ctx.fill(); ctx.shadowBlur=0;
     });
-
-    // Border
-    ctx.beginPath();ctx.arc(cx,cy,R,0,Math.PI*2);
-    ctx.strokeStyle='rgba(0,170,255,0.4)';ctx.lineWidth=1;ctx.stroke();
-    ctx.strokeStyle='rgba(0,170,255,0.15)';
-    ctx.strokeRect(0,0,W,H);
+    ctx.beginPath(); ctx.arc(cx,cy,R,0,Math.PI*2);
+    ctx.strokeStyle='rgba(0,170,255,0.4)'; ctx.lineWidth=1; ctx.stroke();
+    ctx.strokeStyle='rgba(0,170,255,0.15)'; ctx.strokeRect(0,0,W,H);
 }
 
 function drawBlueWave() {
     const c = document.getElementById('blueWaveCanvas');
     const ctx = c.getContext('2d');
-    const W = 300, H = 60;
+    const W=300, H=60;
     ctx.clearRect(0,0,W,H);
-    ctx.fillStyle='rgba(0,5,20,0.6)';ctx.fillRect(0,0,W,H);
-
+    ctx.fillStyle='rgba(0,5,20,0.6)'; ctx.fillRect(0,0,W,H);
     const count = allPredictions.length;
-    const amp = 8 + count * 4;
-
-    // Draw 3 wave layers
+    const audioE = audioActive ? getAudioEnergy() : {total:0};
+    const amp = 8 + count*4 + (audioActive ? audioE.total*20 : 0);
     [[0,'rgba(0,170,255,0.6)',1.0],[0.5,'rgba(68,204,255,0.35)',0.7],[1.0,'rgba(0,120,200,0.25)',0.4]].forEach(([phOff,col,sc])=>{
         ctx.beginPath();
         for(let x=0;x<=W;x++){
@@ -1233,39 +1609,36 @@ function drawBlueWave() {
                       +Math.sin((x/W)*Math.PI*10+blueWavePhase*1.3+phOff)*amp*0.4*sc;
             x===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
         }
-        ctx.strokeStyle=col;ctx.lineWidth=1.5;
-        ctx.shadowBlur=6;ctx.shadowColor='rgba(0,170,255,0.5)';
-        ctx.stroke();ctx.shadowBlur=0;
+        ctx.strokeStyle=col; ctx.lineWidth=1.5;
+        ctx.shadowBlur=6; ctx.shadowColor='rgba(0,170,255,0.5)';
+        ctx.stroke(); ctx.shadowBlur=0;
     });
-
-    // Glow line center
-    ctx.strokeStyle='rgba(0,5,20,0.8)';ctx.lineWidth=0.5;ctx.setLineDash([4,4]);
-    ctx.beginPath();ctx.moveTo(0,H/2);ctx.lineTo(W,H/2);ctx.stroke();ctx.setLineDash([]);
-
-    // Border
-    ctx.strokeStyle='rgba(0,170,255,0.2)';ctx.lineWidth=1;ctx.strokeRect(0,0,W,H);
+    ctx.strokeStyle='rgba(0,5,20,0.8)'; ctx.lineWidth=0.5; ctx.setLineDash([4,4]);
+    ctx.beginPath(); ctx.moveTo(0,H/2); ctx.lineTo(W,H/2); ctx.stroke(); ctx.setLineDash([]);
+    ctx.strokeStyle='rgba(0,170,255,0.2)'; ctx.lineWidth=1; ctx.strokeRect(0,0,W,H);
 }
 
 function drawBlueGrid(ctx, W, H, dpr) {
     const gs = 60*dpr;
-    ctx.strokeStyle='rgba(0,60,120,0.18)';ctx.lineWidth=0.5;
+    ctx.strokeStyle='rgba(0,60,120,0.18)'; ctx.lineWidth=0.5;
     for(let x=0;x<W;x+=gs){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
     for(let y=0;y<H;y+=gs){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
 }
 
 function drawBlueCorners(ctx, W, H, dpr) {
     const s=32*dpr;
-    ctx.strokeStyle='rgba(0,170,255,0.3)';ctx.lineWidth=1.5*dpr;ctx.shadowBlur=10;ctx.shadowColor='rgba(0,170,255,0.5)';
+    ctx.strokeStyle='rgba(0,170,255,0.3)'; ctx.lineWidth=1.5*dpr;
+    ctx.shadowBlur=10; ctx.shadowColor='rgba(0,170,255,0.5)';
     [[0,0,1,1],[W,0,-1,1],[W,H,-1,-1],[0,H,1,-1]].forEach(([x,y,sx,sy])=>{
-        ctx.beginPath();ctx.moveTo(x+sx*s,y);ctx.lineTo(x,y);ctx.lineTo(x,y+sy*s);ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(x+sx*s,y); ctx.lineTo(x,y); ctx.lineTo(x,y+sy*s); ctx.stroke();
     });
     ctx.shadowBlur=0;
 }
 
-/* ════ SHARED UTILS ════ */
+/* ══ SHARED UTILS ══ */
 function startCoordsDrift(){
     setInterval(()=>{
-        lat+=(Math.random()-.5)*.00005;lon+=(Math.random()-.5)*.00005;
+        lat+=(Math.random()-.5)*.00005; lon+=(Math.random()-.5)*.00005;
         const f=v=>`${Math.floor(Math.abs(v))}°${String(Math.floor((Math.abs(v)%1)*60)).padStart(2,'0')}'${String(((Math.abs(v)%1*60)%1*60)|0).padStart(2,'0')}"`;
         const coordsL=document.getElementById('coordsL');
         if(coordsL) coordsL.textContent=`LAT ${f(lat)}${lat>0?'N':'S'}  LON ${f(lon)}${lon>0?'E':'W'}`;
@@ -1278,10 +1651,7 @@ function startCoordsDrift(){
 }
 
 function startBlueTopClock() {
-    setInterval(()=>{
-        const el=document.getElementById('blueTopTime');
-        if(el) el.textContent=tsTGT();
-    },1000);
+    setInterval(()=>{ const el=document.getElementById('blueTopTime'); if(el) el.textContent=tsTGT(); },1000);
 }
 
 window.addEventListener('resize',()=>{
@@ -1289,6 +1659,8 @@ window.addEventListener('resize',()=>{
     tapCanvas.width=innerWidth; tapCanvas.height=innerHeight;
     tgtCanvas.width=innerWidth*devicePixelRatio; tgtCanvas.height=innerHeight*devicePixelRatio;
     blueCanvas.width=innerWidth*devicePixelRatio; blueCanvas.height=innerHeight*devicePixelRatio;
+    audioHeatCanvas.width=innerWidth; audioHeatCanvas.height=innerHeight;
+    pixelCanvas.width=innerWidth; pixelCanvas.height=innerHeight;
 });
 </script>
 
