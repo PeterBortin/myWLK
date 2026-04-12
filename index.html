@@ -208,47 +208,9 @@
     }
     @keyframes fadeInBio { from{opacity:0;transform:translateX(-8px)} to{opacity:0.9} }
 
-    /* Biometric Data Panel */
-    #bioPanelRight {
-        position:absolute; top:44px; right:15px; width:190px; z-index:15;
-        display:flex; flex-direction:column; gap:6px; pointer-events:none;
-    }
-    .bio-section {
-        background:rgba(0,5,0,0.8); border:1px solid rgba(57,255,20,0.2);
-        border-left:2px solid var(--bio); padding:8px 10px;
-    }
-    .bio-sec-title {
-        font-family:var(--sans); font-size:8px; font-weight:700;
-        letter-spacing:3px; color:rgba(57,255,20,0.5);
-        border-bottom:1px solid rgba(57,255,20,0.15);
-        padding-bottom:5px; margin-bottom:6px; text-transform:uppercase;
-    }
-    .bio-row { display:flex; align-items:center; gap:6px; margin-bottom:4px; }
-    .bio-label { font-size:8px; color:rgba(57,255,20,0.45); letter-spacing:1px; width:50px; flex-shrink:0; }
-    .bio-bar-bg { flex:1; height:3px; background:rgba(57,255,20,0.1); border-radius:2px; overflow:hidden; }
-    .bio-bar-fill { height:100%; background:linear-gradient(to right,rgba(57,255,20,0.5),var(--bio)); border-radius:2px; transition:width 0.3s ease; box-shadow:0 0 4px var(--bio); }
-    .bio-val { font-size:9px; color:var(--bio); width:34px; text-align:right; }
-    .bio-stat-row { display:flex; justify-content:space-between; align-items:baseline; padding:2px 0; border-bottom:1px solid rgba(57,255,20,0.06); }
-    .bio-stat-key { font-size:8px; color:rgba(57,255,20,0.35); letter-spacing:1px; }
-    .bio-stat-val { font-size:9px; color:var(--bio); letter-spacing:1px; }
-    .bio-stat-val.alert { color:#ff3030; text-shadow:0 0 6px #ff3030; animation:blink 0.5s steps(1) infinite; }
 
-    /* Face detection overlay info */
-    #bioFacePanel {
-        position:absolute; top:44px; left:15px; z-index:15;
-        width:200px; pointer-events:none;
-    }
-    .bio-face-id {
-        background:rgba(0,5,0,0.8); border:1px solid rgba(57,255,20,0.2);
-        border-left:2px solid var(--bio); padding:8px 10px;
-        font-family:var(--mono); font-size:9px; color:var(--bio);
-        letter-spacing:1px; display:none;
-    }
-    .bio-face-id.visible { display:block; animation:fadeInBio 0.3s ease; }
-    .bfi-header { font-family:var(--sans); font-size:8px; font-weight:700; letter-spacing:3px; color:rgba(57,255,20,0.5); border-bottom:1px solid rgba(57,255,20,0.15); padding-bottom:4px; margin-bottom:5px; }
-    .bfi-row { display:flex; justify-content:space-between; margin-bottom:2px; }
-    .bfi-key { color:rgba(57,255,20,0.4); font-size:8px; }
-    .bfi-val { color:var(--bio); font-size:8px; letter-spacing:0.5px; }
+
+
 
     /* Skeleton status badge */
     #skeletonBadge {
@@ -378,37 +340,6 @@
     </div>
 
     <div id="skeletonBadge">SKELETON TRACKING</div>
-
-    <!-- Left: Face panel -->
-    <div id="bioFacePanel">
-        <div id="bioFaceCard" class="bio-face-id">
-            <div class="bfi-header">// FACE BIOMETRICS</div>
-            <div class="bfi-row"><span class="bfi-key">FACE_ID</span><span class="bfi-val" id="bfiFaceId">--</span></div>
-            <div class="bfi-row"><span class="bfi-key">MESH_PTS</span><span class="bfi-val">478</span></div>
-            <div class="bfi-row"><span class="bfi-key">SYMMETRY</span><span class="bfi-val" id="bfiSymmetry">--%</span></div>
-            <div class="bfi-row"><span class="bfi-key">EYE_ST</span><span class="bfi-val" id="bfiEyes">OPEN</span></div>
-            <div class="bfi-row"><span class="bfi-key">MESH</span><span class="bfi-val" id="bfiMesh">ONLINE</span></div>
-        </div>
-    </div>
-
-    <!-- Right: Metrics panel -->
-    <div id="bioPanelRight">
-        <div class="bio-section">
-            <div class="bio-sec-title">// skeleton metrics</div>
-            <div class="bio-row"><span class="bio-label">POSE</span><div class="bio-bar-bg"><div class="bio-bar-fill" id="bPose" style="width:0%"></div></div><span class="bio-val" id="bPoseVal">0%</span></div>
-            <div class="bio-row"><span class="bio-label">BALANCE</span><div class="bio-bar-bg"><div class="bio-bar-fill" id="bBalance" style="width:0%"></div></div><span class="bio-val" id="bBalanceVal">0%</span></div>
-            <div class="bio-row"><span class="bio-label">MOTION</span><div class="bio-bar-bg"><div class="bio-bar-fill" id="bMotion" style="width:0%"></div></div><span class="bio-val" id="bMotionVal">0%</span></div>
-            <div class="bio-row"><span class="bio-label">CONF</span><div class="bio-bar-bg"><div class="bio-bar-fill" id="bConf" style="width:0%"></div></div><span class="bio-val" id="bConfVal">0%</span></div>
-        </div>
-        <div class="bio-section">
-            <div class="bio-sec-title">// body status</div>
-            <div class="bio-stat-row"><span class="bio-stat-key">JOINTS</span><span class="bio-stat-val" id="bJoints">--</span></div>
-            <div class="bio-stat-row"><span class="bio-stat-key">FACING</span><span class="bio-stat-val" id="bFacing">--</span></div>
-            <div class="bio-stat-row"><span class="bio-stat-key">HEAD_TILT</span><span class="bio-stat-val" id="bHeadTilt">--</span></div>
-            <div class="bio-stat-row"><span class="bio-stat-key">ARMS</span><span class="bio-stat-val" id="bArms">--</span></div>
-            <div class="bio-stat-row"><span class="bio-stat-key">STATUS</span><span class="bio-stat-val" id="bStatus">SCANNING</span></div>
-        </div>
-    </div>
 
     <div id="bioTerminal"></div>
 
@@ -662,98 +593,24 @@ function drawBioSkeleton() {
     bodyVisible = !!(lm && lm.length > 0);
 
     document.getElementById('skeletonBadge').classList.toggle('show', bodyVisible);
+    document.getElementById('bioCoordsR').textContent = `FACE:${faceVisible?'01':'00'} BODY:${bodyVisible?'01':'00'}`;
 
     if (!bodyVisible) {
-        document.getElementById('bStatus').textContent = 'SCANNING';
-        document.getElementById('bJoints').textContent = '--';
-        document.getElementById('bFacing').textContent = '--';
-        document.getElementById('bArms').textContent   = '--';
-        bioSpecValues.pose    = Math.max(0, bioSpecValues.pose - 2);
-        bioSpecValues.balance = Math.max(0, bioSpecValues.balance - 2);
-        updateBioMetrics();
         drawBioGrid(ctx, W, H, dpr);
         drawBioCorners(ctx, W, H, dpr);
         return;
     }
 
-    // Motion detection
-    if (prevPoseLandmarks) {
-        let dx = 0;
-        [11,12,23,24].forEach(i => {
-            if (lm[i] && prevPoseLandmarks[i]) {
-                dx += Math.abs(lm[i].x - prevPoseLandmarks[i].x) +
-                      Math.abs(lm[i].y - prevPoseLandmarks[i].y);
-            }
-        });
-        motionLevel = motionLevel * 0.85 + dx * 4 * 0.15;
-    }
-    prevPoseLandmarks = lm.map(p => ({...p}));
-
-    // Analyze pose
-    const visibleJoints = lm.filter(p => p.visibility > 0.5).length;
-    const lShoulder = lm[11], rShoulder = lm[12];
-    const lHip = lm[23], rHip = lm[24];
-    const lWrist = lm[15], rWrist = lm[16];
-    const nose = lm[0];
-
-    // Facing direction
-    let facing = 'FRONT';
-    if (lShoulder && rShoulder) {
-        const shoulderW = Math.abs(lShoulder.x - rShoulder.x);
-        if (shoulderW < 0.08) facing = lShoulder.x < rShoulder.x ? 'LEFT' : 'RIGHT';
-        else if (shoulderW > 0.35) facing = 'FRONT';
-        else facing = 'ANGLE';
-    }
-
-    // Balance
-    let balancePct = 50;
-    if (lShoulder && rShoulder && lHip && rHip) {
-        const shoulderMidX = (lShoulder.x + rShoulder.x) / 2;
-        const hipMidX = (lHip.x + rHip.x) / 2;
-        const offset = Math.abs(shoulderMidX - hipMidX);
-        balancePct = Math.round(Math.max(0, 100 - offset * 500));
-    }
-
-    // Head tilt (via nose vs shoulder midpoint)
-    let headTilt = '0°';
-    if (nose && lShoulder && rShoulder) {
-        const sMid = (lShoulder.x + rShoulder.x) / 2;
-        const tilt = Math.round((nose.x - sMid) * 180);
-        headTilt = (tilt > 0 ? '+' : '') + tilt + '°';
-    }
-
-    // Arms
-    let armsState = 'DOWN';
-    if (lWrist && rWrist && lShoulder && rShoulder) {
-        const lUp = lWrist.y < lShoulder.y;
-        const rUp = rWrist.y < rShoulder.y;
-        if (lUp && rUp) armsState = 'RAISED';
-        else if (lUp) armsState = 'L RAISED';
-        else if (rUp) armsState = 'R RAISED';
-    }
-
-    // Avg confidence
+    // Avg confidence for label
     const avgConf = lm.reduce((s,p) => s + (p.visibility||0), 0) / lm.length;
-
-    // Update values
-    bioSpecValues.pose    = lerp(bioSpecValues.pose,    Math.min(100, visibleJoints * 3), 0.12);
-    bioSpecValues.balance = lerp(bioSpecValues.balance, balancePct, 0.08);
-    bioSpecValues.motion  = lerp(bioSpecValues.motion,  Math.min(100, motionLevel * 300), 0.15);
-    bioSpecValues.conf    = lerp(bioSpecValues.conf,    Math.round(avgConf * 100), 0.1);
-
-    document.getElementById('bJoints').textContent  = visibleJoints + '/33';
-    document.getElementById('bFacing').textContent  = facing;
-    document.getElementById('bHeadTilt').textContent= headTilt;
-    document.getElementById('bArms').textContent    = armsState;
-    document.getElementById('bStatus').textContent  = 'LOCKED';
-    document.getElementById('bioCoordsR').textContent = `FACE:${faceVisible?'01':'00'} BODY:${bodyVisible?'01':'00'}`;
-
-    updateBioMetrics();
 
     // Draw grid background
     drawBioGrid(ctx, W, H, dpr);
 
-    // Draw connections
+    // ── LAYER 1: Blue silhouette (volume fill beneath skeleton) ──
+    drawBodySilhouette(ctx, lm, W, H, dpr);
+
+    // ── LAYER 2: Skeleton connections ──
     ctx.save();
     POSE_CONNECTIONS.forEach(([a, b]) => {
         const pa = lm[a], pb = lm[b];
@@ -764,14 +621,13 @@ function drawBioSkeleton() {
         const confidence = (pa.visibility + pb.visibility) / 2;
         const alpha = 0.4 + confidence * 0.5;
 
-        // Color by body segment
         let strokeColor;
         if ([11,12,13,14,15,16].includes(a) || [11,12,13,14,15,16].includes(b)) {
-            strokeColor = `rgba(57,255,20,${alpha})`; // arms: bright green
+            strokeColor = `rgba(57,255,20,${alpha})`;       // arms: bright green
         } else if ([23,24,25,26,27,28,29,30,31,32].includes(a)) {
-            strokeColor = `rgba(0,200,120,${alpha})`; // legs: dimmer
+            strokeColor = `rgba(0,200,120,${alpha})`;       // legs
         } else {
-            strokeColor = `rgba(120,255,100,${alpha})`; // torso/head
+            strokeColor = `rgba(120,255,100,${alpha})`;     // torso/head
         }
 
         ctx.beginPath();
@@ -785,22 +641,19 @@ function drawBioSkeleton() {
     });
     ctx.restore();
 
-    // Draw joints
+    // ── LAYER 3: Joint dots ──
     ctx.save();
     lm.forEach((p, i) => {
         if (p.visibility < 0.4) return;
         const x = p.x * W, y = p.y * H;
-        const r = i === 0 ? 5 * dpr : 3.5 * dpr; // nose larger
+        const r = i === 0 ? 5 * dpr : 3.5 * dpr;
         const alpha = 0.5 + p.visibility * 0.5;
-
         ctx.beginPath();
         ctx.arc(x, y, r, 0, Math.PI * 2);
         ctx.fillStyle = `rgba(57,255,20,${alpha})`;
         ctx.shadowBlur = 12 * dpr;
         ctx.shadowColor = 'rgba(57,255,20,0.9)';
         ctx.fill();
-
-        // Joint outer ring for key points
         if ([0,11,12,23,24,15,16].includes(i)) {
             ctx.beginPath();
             ctx.arc(x, y, r * 2.2, 0, Math.PI * 2);
@@ -812,7 +665,7 @@ function drawBioSkeleton() {
     });
     ctx.restore();
 
-    // Draw bounding box around body
+    // ── LAYER 4: Bounding box ──
     const visLm = lm.filter(p => p.visibility > 0.4);
     if (visLm.length > 4) {
         const xs = visLm.map(p => p.x * W);
@@ -821,27 +674,20 @@ function drawBioSkeleton() {
         const by = Math.min(...ys) - 20*dpr;
         const bw = Math.max(...xs) - bx + 20*dpr;
         const bh = Math.max(...ys) - by + 20*dpr;
-
         const pulse = 0.6 + Math.sin(Date.now() / 400) * 0.4;
         ctx.save();
         ctx.strokeStyle = `rgba(57,255,20,${0.3 * pulse})`;
-        ctx.lineWidth = dpr;
-        ctx.setLineDash([6*dpr, 8*dpr]);
-        ctx.strokeRect(bx, by, bw, bh);
-        ctx.setLineDash([]);
-
+        ctx.lineWidth = dpr; ctx.setLineDash([6*dpr, 8*dpr]);
+        ctx.strokeRect(bx, by, bw, bh); ctx.setLineDash([]);
         const cl = Math.min(bw, bh) * 0.12;
         ctx.strokeStyle = `rgba(57,255,20,${0.7 + 0.3 * pulse})`;
-        ctx.lineWidth = 2 * dpr;
-        ctx.shadowBlur = 10; ctx.shadowColor = 'rgba(57,255,20,0.8)';
+        ctx.lineWidth = 2 * dpr; ctx.shadowBlur = 10; ctx.shadowColor = 'rgba(57,255,20,0.8)';
         ctx.beginPath();
         ctx.moveTo(bx, by+cl); ctx.lineTo(bx, by); ctx.lineTo(bx+cl, by);
         ctx.moveTo(bx+bw-cl, by); ctx.lineTo(bx+bw, by); ctx.lineTo(bx+bw, by+cl);
         ctx.moveTo(bx+bw, by+bh-cl); ctx.lineTo(bx+bw, by+bh); ctx.lineTo(bx+bw-cl, by+bh);
         ctx.moveTo(bx+cl, by+bh); ctx.lineTo(bx, by+bh); ctx.lineTo(bx, by+bh-cl);
         ctx.stroke();
-
-        // Label
         ctx.shadowBlur = 6;
         ctx.fillStyle = 'rgba(57,255,20,0.85)';
         ctx.font = `bold ${10*dpr}px 'Share Tech Mono'`;
@@ -850,6 +696,103 @@ function drawBioSkeleton() {
     }
 
     drawBioCorners(ctx, W, H, dpr);
+}
+
+/* ══ Blue silhouette: inflated body volume ══ */
+function drawBodySilhouette(ctx, lm, W, H, dpr) {
+    // Key landmark indices for body outline
+    // We build a convex-ish hull from visible body landmarks,
+    // then expand each point outward from centroid for a "volume" effect.
+    // Use anatomically ordered points for a smooth body outline.
+
+    const SILHOUETTE_ORDER = [
+        // head top → right ear → right shoulder → right elbow → right wrist
+        0, 8, 6, 12, 14, 16,
+        // right wrist → right hip → right knee → right ankle → right foot
+        16, 24, 26, 28, 32,
+        // across feet
+        32, 31,
+        // left foot → left ankle → left knee → left hip
+        31, 27, 25, 23,
+        // left hip → left wrist → left elbow → left shoulder
+        23, 15, 13, 11,
+        // left shoulder → left ear → head top
+        11, 5, 7, 0
+    ];
+
+    // Collect unique ordered points that are visible enough
+    const pts = [];
+    let prevIdx = -1;
+    SILHOUETTE_ORDER.forEach(i => {
+        if (i === prevIdx) return;
+        prevIdx = i;
+        const p = lm[i];
+        if (!p || p.visibility < 0.25) return;
+        pts.push({ x: p.x * W, y: p.y * H });
+    });
+
+    if (pts.length < 4) return;
+
+    // Compute centroid
+    const cx = pts.reduce((s,p) => s+p.x, 0) / pts.length;
+    const cy = pts.reduce((s,p) => s+p.y, 0) / pts.length;
+
+    // Expand each point outward from centroid (inflate by padding pixels)
+    const PAD = 28 * dpr;
+    const expanded = pts.map(p => {
+        const dx = p.x - cx, dy = p.y - cy;
+        const dist = Math.sqrt(dx*dx + dy*dy) || 1;
+        return { x: p.x + (dx/dist)*PAD, y: p.y + (dy/dist)*PAD };
+    });
+
+    // Draw filled silhouette with smooth curves
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(expanded[0].x, expanded[0].y);
+    for (let i = 1; i < expanded.length - 1; i++) {
+        // Catmull-Rom-ish smooth: use midpoints for quadratic bezier control
+        const mx = (expanded[i].x + expanded[i+1].x) / 2;
+        const my = (expanded[i].y + expanded[i+1].y) / 2;
+        ctx.quadraticCurveTo(expanded[i].x, expanded[i].y, mx, my);
+    }
+    ctx.quadraticCurveTo(
+        expanded[expanded.length-1].x, expanded[expanded.length-1].y,
+        expanded[0].x, expanded[0].y
+    );
+    ctx.closePath();
+
+    // Blue semi-transparent fill with radial gradient for volume
+    const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(W,H)*0.4);
+    grad.addColorStop(0,   'rgba(30,100,255,0.22)');
+    grad.addColorStop(0.5, 'rgba(0,140,255,0.18)');
+    grad.addColorStop(1,   'rgba(0,80,200,0.08)');
+    ctx.fillStyle = grad;
+    ctx.fill();
+
+    // Blue glowing stroke for edge definition
+    ctx.strokeStyle = 'rgba(0,160,255,0.55)';
+    ctx.lineWidth = 1.5 * dpr;
+    ctx.shadowBlur = 18 * dpr;
+    ctx.shadowColor = 'rgba(0,120,255,0.7)';
+    ctx.stroke();
+
+    // Inner soft glow ring (second pass, slightly smaller)
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x, pts[0].y);
+    for (let i = 1; i < pts.length - 1; i++) {
+        const mx = (pts[i].x + pts[i+1].x) / 2;
+        const my = (pts[i].y + pts[i+1].y) / 2;
+        ctx.quadraticCurveTo(pts[i].x, pts[i].y, mx, my);
+    }
+    ctx.quadraticCurveTo(pts[pts.length-1].x, pts[pts.length-1].y, pts[0].x, pts[0].y);
+    ctx.closePath();
+    ctx.strokeStyle = 'rgba(80,180,255,0.25)';
+    ctx.lineWidth = dpr;
+    ctx.shadowBlur = 8 * dpr;
+    ctx.shadowColor = 'rgba(0,170,255,0.4)';
+    ctx.stroke();
+
+    ctx.restore();
 }
 
 /* ══ Draw Face Mesh ══ */
@@ -865,28 +808,15 @@ function drawBioFaceMesh() {
     const faces = faceResults.multiFaceLandmarks;
     faceVisible = !!(faces && faces.length > 0);
 
-    const faceCard = document.getElementById('bioFaceCard');
-    faceCard.classList.toggle('visible', faceVisible);
-
     if (!faceVisible) return;
 
     const lm = faces[0];
 
-    // Calculate symmetry
-    const symm = Math.abs(lm[234].x - (1 - lm[454].x));
-    const symmPct = Math.max(0, Math.min(100, Math.round((1 - symm * 10) * 100)));
-
-    // Eye openness
+    // Eye openness for color
     const lEyeOpen = Math.hypot(lm[159].x - lm[145].x, lm[159].y - lm[145].y) > 0.015;
     const rEyeOpen = Math.hypot(lm[386].x - lm[374].x, lm[386].y - lm[374].y) > 0.015;
     const eyeState = lEyeOpen && rEyeOpen ? 'OPEN' : (!lEyeOpen && !rEyeOpen ? 'CLOSED' : 'PARTIAL');
 
-    // Update HUD
-    document.getElementById('bfiFaceId').textContent  = '0x' + Math.floor(lm[1].x * 0xFFFF).toString(16).toUpperCase();
-    document.getElementById('bfiSymmetry').textContent = symmPct + '%';
-    document.getElementById('bfiEyes').textContent     = eyeState;
-
-    // Color based on state
     const faceColor = eyeState === 'CLOSED' ? '#ff3030' : '#39ff14';
 
     // Helper: lm px with NO mirror (environment camera, no flip)
@@ -986,19 +916,6 @@ function drawBioFaceMesh() {
     ctx.restore();
 }
 
-function updateBioMetrics() {
-    const set = (id, val) => {
-        const v = Math.round(val);
-        const el = document.getElementById(id);
-        const vl = document.getElementById(id+'Val');
-        if (el) el.style.width = v + '%';
-        if (vl) vl.textContent = v + '%';
-    };
-    set('bPose',    bioSpecValues.pose);
-    set('bBalance', bioSpecValues.balance);
-    set('bMotion',  bioSpecValues.motion);
-    set('bConf',    bioSpecValues.conf);
-}
 
 function drawBioGrid(ctx, W, H, dpr) {
     const gs = 55 * dpr;
