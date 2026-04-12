@@ -21,7 +21,7 @@
         #container { position:relative; width:100vw; height:100vh; }
         video { position:absolute; top:0; left:0; width:100%; height:100%; object-fit:cover; display:none; z-index:0; }
         video.mode-target { display:block; filter:brightness(0.45) contrast(1.3) saturate(0.1) hue-rotate(180deg); }
-        video.mode-bio    { display:block; filter:brightness(0.08) contrast(1.6) saturate(0); }
+        video.mode-bio    { display:block; filter:brightness(0.18) contrast(1.5) saturate(0.05); }
         #webglCanvas  { position:absolute; top:0; left:0; width:100%; height:100%; z-index:1; display:none; }
         #hudCanvas    { position:absolute; top:0; left:0; width:100%; height:100%; z-index:5; pointer-events:none; display:none; }
         #tapCanvas    { position:absolute; top:0; left:0; width:100%; height:100%; z-index:6; cursor:pointer; display:none; }
@@ -36,7 +36,7 @@
     @keyframes scanScroll    { from{background-position:0 0} to{background-position:0 100px} }
     @keyframes scanScrollBio { from{background-position:0 0} to{background-position:0 60px}  }
     #vignette     { position:absolute; inset:0; pointer-events:none; z-index:4; display:none; background:radial-gradient(ellipse 80% 80% at 50% 50%,transparent 40%,rgba(0,0,0,0.8) 100%); }
-    #vignetteBio  { position:absolute; inset:0; pointer-events:none; z-index:4; display:none; background:radial-gradient(ellipse 80% 80% at 50% 50%,transparent 25%,rgba(0,5,0,0.92) 100%); }
+    #vignetteBio  { position:absolute; inset:0; pointer-events:none; z-index:4; display:none; background:radial-gradient(ellipse 85% 85% at 50% 50%,transparent 30%,rgba(0,5,0,0.72) 100%); }
 
     /* MODE TRANSITION */
     #modeTransition { position:absolute; inset:0; z-index:200; pointer-events:none; opacity:0; }
@@ -634,6 +634,20 @@ function drawBioSkeleton() {
     // ── LAYER 1: Blue silhouette ──
     drawBodySilhouette(ctx, lm, W, H, dpr);
 
+    // ── Colour palette per body region ──
+    // torso: bright green | arms: yellow-green | legs: teal-blue | hands: cyan | head lines: dim magenta
+    function segColor(a, b) {
+        const isHead = HEAD_LANDMARKS.has(a) || HEAD_LANDMARKS.has(b);
+        const isArm  = [11,12,13,14].some(x=>x===a||x===b);
+        const isLeg  = [23,24,25,26,27,28,29,30,31,32].some(x=>x===a||x===b);
+        const isTors = [11,12,23,24].every(x=>[a,b].includes(x)) ||
+                       ([11,23].some(x=>x===a||x===b) && [12,24].some(x=>x===a||x===b));
+        if (isHead) return { r:200, g:80,  b:255 }; // dim magenta
+        if (isArm)  return { r:160, g:255, b:50  }; // yellow-green
+        if (isLeg)  return { r:0,   g:180, b:255 }; // sky-blue
+        return            { r:57,  g:255, b:20  }; // bright green (torso)
+    }
+
     // ── LAYER 2: Skeleton connections ──
     ctx.save();
     POSE_CONNECTIONS.forEach(([a, b]) => {
@@ -642,101 +656,146 @@ function drawBioSkeleton() {
         if (pa.visibility < 0.3 || pb.visibility < 0.3) return;
         const x1 = pa.x * W, y1 = pa.y * H;
         const x2 = pb.x * W, y2 = pb.y * H;
-        const confidence = (pa.visibility + pb.visibility) / 2;
-        const alpha = 0.4 + confidence * 0.5;
+        const conf = (pa.visibility + pb.visibility) / 2;
+        const alpha = 0.45 + conf * 0.55;
+        const isHead = HEAD_LANDMARKS.has(a) || HEAD_LANDMARKS.has(b);
+        const c = segColor(a, b);
+        const col = `rgba(${c.r},${c.g},${c.b},${isHead ? alpha * 0.28 : alpha})`;
 
-        let strokeColor;
-        if ([11,12,13,14,15,16].includes(a) || [11,12,13,14,15,16].includes(b)) {
-            strokeColor = `rgba(57,255,20,${alpha})`;       // arms: bright green
-        } else if ([23,24,25,26,27,28,29,30,31,32].includes(a)) {
-            strokeColor = `rgba(0,200,120,${alpha})`;       // legs
-        } else if (HEAD_LANDMARKS.has(a) || HEAD_LANDMARKS.has(b)) {
-            // Head connections: dimmer, thinner — no dots but keep lines for face structure
-            strokeColor = `rgba(57,255,20,${alpha * 0.35})`;
-        } else {
-            strokeColor = `rgba(120,255,100,${alpha})`;     // torso
+        ctx.beginPath();
+        ctx.strokeStyle = col;
+        ctx.lineWidth = isHead ? 0.8 * dpr : 2.5 * dpr;
+        ctx.shadowBlur = isHead ? 4 * dpr : 14 * dpr;
+        ctx.shadowColor = col;
+        ctx.moveTo(x1, y1); ctx.lineTo(x2, y2);
+        ctx.stroke();
+
+        // Double-pass glow for body bones (not head)
+        if (!isHead && conf > 0.6) {
+            ctx.beginPath();
+            ctx.strokeStyle = `rgba(${c.r},${c.g},${c.b},${alpha * 0.2})`;
+            ctx.lineWidth = 6 * dpr;
+            ctx.shadowBlur = 20 * dpr;
+            ctx.moveTo(x1, y1); ctx.lineTo(x2, y2);
+            ctx.stroke();
         }
-
-        ctx.beginPath();
-        ctx.strokeStyle = strokeColor;
-        ctx.lineWidth = (HEAD_LANDMARKS.has(a) || HEAD_LANDMARKS.has(b)) ? dpr : 1.8 * dpr;
-        ctx.shadowBlur = 8 * dpr;
-        ctx.shadowColor = strokeColor;
-        ctx.moveTo(x1, y1);
-        ctx.lineTo(x2, y2);
-        ctx.stroke();
-    });
-
-    // ── LAYER 2b: Hand connections (wrist + finger tips) ──
-    HAND_CONNECTIONS.forEach(([a, b]) => {
-        const pa = lm[a], pb = lm[b];
-        if (!pa || !pb) return;
-        if (pa.visibility < 0.3 || pb.visibility < 0.3) return;
-        const x1 = pa.x * W, y1 = pa.y * H;
-        const x2 = pb.x * W, y2 = pb.y * H;
-        const alpha = 0.5 + ((pa.visibility + pb.visibility) / 2) * 0.4;
-        ctx.beginPath();
-        ctx.strokeStyle = `rgba(0,220,255,${alpha})`;  // cyan for hands
-        ctx.lineWidth = 1.5 * dpr;
-        ctx.shadowBlur = 10 * dpr;
-        ctx.shadowColor = 'rgba(0,200,255,0.8)';
-        ctx.moveTo(x1, y1);
-        ctx.lineTo(x2, y2);
-        ctx.stroke();
     });
     ctx.restore();
 
-    // ── LAYER 3: Joint dots — HEAD dots REMOVED, HAND dots SPECIAL ──
+    // ── LAYER 2b: Hand area — fan + palm fill ──
+    function drawHand(wristIdx, pinkyIdx, indexIdx, thumbIdx) {
+        const w = lm[wristIdx], pk = lm[pinkyIdx], ix = lm[indexIdx], th = lm[thumbIdx];
+        if (!w || !pk || !ix || !th) return;
+        if (w.visibility < 0.35) return;
+        const wx = w.x*W,  wy = w.y*H;
+        const pkx = pk.x*W, pky = pk.y*H;
+        const ixx = ix.x*W, ixy = ix.y*H;
+        const thx = th.x*W, thy = th.y*H;
+        const alpha = 0.6 + w.visibility * 0.4;
+        const pulseFill = 0.08 + Math.sin(Date.now() / 350) * 0.04;
+
+        ctx.save();
+        // Palm filled polygon
+        ctx.beginPath();
+        ctx.moveTo(wx, wy);
+        ctx.lineTo(pkx, pky);
+        ctx.lineTo(ixx, ixy);
+        ctx.lineTo(thx, thy);
+        ctx.closePath();
+        ctx.fillStyle = `rgba(0,220,255,${pulseFill})`;
+        ctx.fill();
+        ctx.strokeStyle = `rgba(0,220,255,${alpha * 0.75})`;
+        ctx.lineWidth = 1.5 * dpr;
+        ctx.shadowBlur = 12 * dpr;
+        ctx.shadowColor = 'rgba(0,220,255,0.9)';
+        ctx.stroke();
+
+        // Rays from wrist to each finger tip
+        [[pkx,pky],[ixx,ixy],[thx,thy]].forEach(([fx,fy]) => {
+            ctx.beginPath();
+            ctx.strokeStyle = `rgba(0,220,255,${alpha * 0.9})`;
+            ctx.lineWidth = 2 * dpr;
+            ctx.shadowBlur = 14 * dpr;
+            ctx.moveTo(wx, wy); ctx.lineTo(fx, fy);
+            ctx.stroke();
+        });
+
+        // Wrist ring + label
+        ctx.beginPath();
+        ctx.arc(wx, wy, 7 * dpr, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(0,220,255,${alpha})`;
+        ctx.shadowBlur = 18 * dpr;
+        ctx.shadowColor = 'rgba(0,220,255,1)';
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(wx, wy, 13 * dpr, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(0,220,255,${alpha * 0.4})`;
+        ctx.lineWidth = dpr;
+        ctx.shadowBlur = 8 * dpr;
+        ctx.stroke();
+
+        // Finger tip dots
+        [[pkx,pky],[ixx,ixy],[thx,thy]].forEach(([fx,fy]) => {
+            ctx.beginPath();
+            ctx.arc(fx, fy, 4 * dpr, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(120,240,255,${alpha * 0.9})`;
+            ctx.shadowBlur = 10 * dpr;
+            ctx.shadowColor = 'rgba(0,220,255,0.8)';
+            ctx.fill();
+        });
+
+        // Label
+        ctx.font = `bold ${9 * dpr}px 'Share Tech Mono'`;
+        ctx.fillStyle = `rgba(0,220,255,${alpha * 0.85})`;
+        ctx.shadowBlur = 5 * dpr;
+        ctx.fillText(wristIdx === 15 ? 'L-HAND' : 'R-HAND', wx + 16*dpr, wy - 8*dpr);
+        ctx.restore();
+    }
+
+    // Left hand: wrist=15 pinky=17 index=19 thumb=21
+    // Right hand: wrist=16 pinky=18 index=20 thumb=22
+    drawHand(15, 17, 19, 21);
+    drawHand(16, 18, 20, 22);
+
+    // ── LAYER 3: Body joint dots (no head, no hands — handled separately) ──
     ctx.save();
     lm.forEach((p, i) => {
-        // Skip head landmark dots entirely
         if (HEAD_LANDMARKS.has(i)) return;
-        if (p.visibility < 0.4) return;
+        if (HAND_LANDMARKS.has(i)) return; // hands drawn above
+        if (p.visibility < 0.38) return;
 
         const x = p.x * W, y = p.y * H;
-        const alpha = 0.5 + p.visibility * 0.5;
+        const alpha = 0.55 + p.visibility * 0.45;
+        const c = segColor(i, i);
+        const col = `rgba(${c.r},${c.g},${c.b},${alpha})`;
+        const isKey = [11,12,23,24,13,14,25,26,27,28].includes(i);
+        const r = isKey ? 5 * dpr : 3.5 * dpr;
 
-        if (HAND_LANDMARKS.has(i)) {
-            // ── Hand / finger dots: cyan, larger, glowing ──
-            const r = (i === 15 || i === 16) ? 5 * dpr : 3.5 * dpr; // wrists bigger
+        // Glow fill
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fillStyle = col;
+        ctx.shadowBlur = 16 * dpr;
+        ctx.shadowColor = col;
+        ctx.fill();
+
+        // Outer ring on key joints (shoulders, hips, knees, ankles)
+        if (isKey) {
             ctx.beginPath();
-            ctx.arc(x, y, r, 0, Math.PI * 2);
-            ctx.fillStyle = `rgba(0,220,255,${alpha})`;
-            ctx.shadowBlur = 14 * dpr;
-            ctx.shadowColor = 'rgba(0,200,255,0.9)';
-            ctx.fill();
-            // Outer ring for wrists
-            if (i === 15 || i === 16) {
-                ctx.beginPath();
-                ctx.arc(x, y, r * 2.5, 0, Math.PI * 2);
-                ctx.strokeStyle = `rgba(0,220,255,${alpha * 0.35})`;
-                ctx.lineWidth = dpr;
-                ctx.shadowBlur = 6 * dpr;
-                ctx.stroke();
-                // Wrist label
-                ctx.font = `bold ${8 * dpr}px 'Share Tech Mono'`;
-                ctx.fillStyle = `rgba(0,220,255,${alpha * 0.8})`;
-                ctx.shadowBlur = 4 * dpr;
-                ctx.fillText(i === 15 ? 'L' : 'R', x + 8 * dpr, y - 6 * dpr);
-            }
-        } else {
-            // Regular body joint dots (green)
-            const r = 3.5 * dpr;
-            ctx.beginPath();
-            ctx.arc(x, y, r, 0, Math.PI * 2);
-            ctx.fillStyle = `rgba(57,255,20,${alpha})`;
-            ctx.shadowBlur = 12 * dpr;
-            ctx.shadowColor = 'rgba(57,255,20,0.9)';
-            ctx.fill();
-            // Outer ring for key body joints
-            if ([11,12,23,24].includes(i)) {
-                ctx.beginPath();
-                ctx.arc(x, y, r * 2.2, 0, Math.PI * 2);
-                ctx.strokeStyle = `rgba(57,255,20,${alpha * 0.4})`;
-                ctx.lineWidth = dpr;
-                ctx.shadowBlur = 0;
-                ctx.stroke();
-            }
+            ctx.arc(x, y, r * 2.2, 0, Math.PI * 2);
+            ctx.strokeStyle = `rgba(${c.r},${c.g},${c.b},${alpha * 0.35})`;
+            ctx.lineWidth = dpr;
+            ctx.shadowBlur = 8 * dpr;
+            ctx.stroke();
+        }
+
+        // Shoulder/hip labels
+        if ([11,12,23,24].includes(i)) {
+            const labels = {11:'L-SH', 12:'R-SH', 23:'L-HIP', 24:'R-HIP'};
+            ctx.font = `${7 * dpr}px 'Share Tech Mono'`;
+            ctx.fillStyle = `rgba(${c.r},${c.g},${c.b},0.65)`;
+            ctx.shadowBlur = 3 * dpr;
+            ctx.fillText(labels[i], x + 8*dpr, y - 6*dpr);
         }
     });
     ctx.restore();
