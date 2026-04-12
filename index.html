@@ -208,10 +208,6 @@
     }
     @keyframes fadeInBio { from{opacity:0;transform:translateX(-8px)} to{opacity:0.9} }
 
-
-
-
-
     /* Skeleton status badge */
     #skeletonBadge {
         position:absolute; top:44px; left:50%; transform:translateX(-50%);
@@ -459,7 +455,26 @@ const POSE_CONNECTIONS = [
     [11,23],[12,24],[23,24],
     [23,25],[24,26],[25,27],[26,28],
     [27,29],[28,30],[29,31],[30,32],
+    // head connections kept for structure but dots removed
     [0,1],[1,2],[2,3],[3,7],[0,4],[4,5],[5,6],[6,8]
+];
+
+/* ══ Head landmark indices — dots HIDDEN, lines only ══ */
+// 0=nose, 1=l_eye_inner, 2=l_eye, 3=l_eye_outer, 4=r_eye_inner,
+// 5=r_eye, 6=r_eye_outer, 7=l_ear, 8=r_ear, 9=l_mouth, 10=r_mouth
+const HEAD_LANDMARKS = new Set([0,1,2,3,4,5,6,7,8,9,10]);
+
+/* ══ Hand/wrist landmark indices for special rendering ══ */
+// 15=l_wrist, 16=r_wrist, 17=l_pinky, 18=r_pinky,
+// 19=l_index, 20=r_index, 21=l_thumb, 22=r_thumb
+const HAND_LANDMARKS = new Set([15,16,17,18,19,20,21,22]);
+
+/* ══ Hand connections for detailed hand drawing ══ */
+const HAND_CONNECTIONS = [
+    [15,17],[15,19],[15,21],  // left wrist to fingers
+    [16,18],[16,20],[16,22],  // right wrist to fingers
+    [17,19],[19,21],          // left finger span
+    [18,20],[20,22]           // right finger span
 ];
 
 /* ══ Face Mesh landmark groups ══ */
@@ -477,10 +492,14 @@ document.getElementById('startBtn').onclick = async () => {
     btn.style.opacity='0'; btn.style.transition='opacity 0.5s';
     setTimeout(()=>btn.style.display='none',500);
     try {
+        // Always use rear (environment) camera
         const stream = await navigator.mediaDevices.getUserMedia({
+            video:{ facingMode:{ exact:'environment' }, width:{ideal:1280}, height:{ideal:720} },
+            audio:false
+        }).catch(() => navigator.mediaDevices.getUserMedia({
             video:{ facingMode:'environment', width:{ideal:1280}, height:{ideal:720} },
             audio:false
-        });
+        }));
         video.srcObject = stream;
         await new Promise(resolve=>{ video.onloadedmetadata=()=>{ video.play(); resolve(); }; });
         model = await cocoSsd.load();
@@ -549,11 +568,14 @@ async function initMediaPipe() {
 function startMPCamera() {
     if (mpCamera) { try { mpCamera.stop(); } catch(_) {} }
     let poseFrame=0, faceFrame=0;
-    mpCamera = new Camera(video, {
-        onFrame: async () => {
-            if (!bioRunning || !mpInitialized) return;
-            if (video.readyState < 2) return;
-            // Alternate pose/face every other frame for performance
+    // ИЗМЕНЕНИЕ 1: принудительно задняя камера для MediaPipe Camera
+    // Camera util берёт текущий видеопоток из элемента video — он уже environment.
+    // Создаём свой обработчик без Camera utils, чтобы не переинициализировать поток.
+    // Вместо new Camera() используем requestAnimationFrame loop:
+    let mpLoopActive = true;
+    async function mpLoop() {
+        if (!mpLoopActive) return;
+        if (bioRunning && mpInitialized && video.readyState >= 2) {
             if (poseFrame % 2 === 0) {
                 try { await mpPose.send({ image: video }); } catch(_) {}
             }
@@ -561,10 +583,12 @@ function startMPCamera() {
                 try { await mpFaceMesh.send({ image: video }); } catch(_) {}
             }
             poseFrame++; faceFrame++;
-        },
-        width: 1280, height: 720
-    });
-    mpCamera.start().catch(e => console.warn('Camera start:', e));
+        }
+        setTimeout(mpLoop, 33); // ~30fps
+    }
+    // Store stop function
+    mpCamera = { stop: () => { mpLoopActive = false; } };
+    mpLoop();
 }
 
 function onPoseResults(results) {
@@ -607,7 +631,7 @@ function drawBioSkeleton() {
     // Draw grid background
     drawBioGrid(ctx, W, H, dpr);
 
-    // ── LAYER 1: Blue silhouette (volume fill beneath skeleton) ──
+    // ── LAYER 1: Blue silhouette ──
     drawBodySilhouette(ctx, lm, W, H, dpr);
 
     // ── LAYER 2: Skeleton connections ──
@@ -626,41 +650,93 @@ function drawBioSkeleton() {
             strokeColor = `rgba(57,255,20,${alpha})`;       // arms: bright green
         } else if ([23,24,25,26,27,28,29,30,31,32].includes(a)) {
             strokeColor = `rgba(0,200,120,${alpha})`;       // legs
+        } else if (HEAD_LANDMARKS.has(a) || HEAD_LANDMARKS.has(b)) {
+            // Head connections: dimmer, thinner — no dots but keep lines for face structure
+            strokeColor = `rgba(57,255,20,${alpha * 0.35})`;
         } else {
-            strokeColor = `rgba(120,255,100,${alpha})`;     // torso/head
+            strokeColor = `rgba(120,255,100,${alpha})`;     // torso
         }
 
         ctx.beginPath();
         ctx.strokeStyle = strokeColor;
-        ctx.lineWidth = 1.8 * dpr;
+        ctx.lineWidth = (HEAD_LANDMARKS.has(a) || HEAD_LANDMARKS.has(b)) ? dpr : 1.8 * dpr;
         ctx.shadowBlur = 8 * dpr;
         ctx.shadowColor = strokeColor;
         ctx.moveTo(x1, y1);
         ctx.lineTo(x2, y2);
         ctx.stroke();
     });
+
+    // ── LAYER 2b: Hand connections (wrist + finger tips) ──
+    HAND_CONNECTIONS.forEach(([a, b]) => {
+        const pa = lm[a], pb = lm[b];
+        if (!pa || !pb) return;
+        if (pa.visibility < 0.3 || pb.visibility < 0.3) return;
+        const x1 = pa.x * W, y1 = pa.y * H;
+        const x2 = pb.x * W, y2 = pb.y * H;
+        const alpha = 0.5 + ((pa.visibility + pb.visibility) / 2) * 0.4;
+        ctx.beginPath();
+        ctx.strokeStyle = `rgba(0,220,255,${alpha})`;  // cyan for hands
+        ctx.lineWidth = 1.5 * dpr;
+        ctx.shadowBlur = 10 * dpr;
+        ctx.shadowColor = 'rgba(0,200,255,0.8)';
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
+    });
     ctx.restore();
 
-    // ── LAYER 3: Joint dots ──
+    // ── LAYER 3: Joint dots — HEAD dots REMOVED, HAND dots SPECIAL ──
     ctx.save();
     lm.forEach((p, i) => {
+        // Skip head landmark dots entirely
+        if (HEAD_LANDMARKS.has(i)) return;
         if (p.visibility < 0.4) return;
+
         const x = p.x * W, y = p.y * H;
-        const r = i === 0 ? 5 * dpr : 3.5 * dpr;
         const alpha = 0.5 + p.visibility * 0.5;
-        ctx.beginPath();
-        ctx.arc(x, y, r, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(57,255,20,${alpha})`;
-        ctx.shadowBlur = 12 * dpr;
-        ctx.shadowColor = 'rgba(57,255,20,0.9)';
-        ctx.fill();
-        if ([0,11,12,23,24,15,16].includes(i)) {
+
+        if (HAND_LANDMARKS.has(i)) {
+            // ── Hand / finger dots: cyan, larger, glowing ──
+            const r = (i === 15 || i === 16) ? 5 * dpr : 3.5 * dpr; // wrists bigger
             ctx.beginPath();
-            ctx.arc(x, y, r * 2.2, 0, Math.PI * 2);
-            ctx.strokeStyle = `rgba(57,255,20,${alpha * 0.4})`;
-            ctx.lineWidth = dpr;
-            ctx.shadowBlur = 0;
-            ctx.stroke();
+            ctx.arc(x, y, r, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(0,220,255,${alpha})`;
+            ctx.shadowBlur = 14 * dpr;
+            ctx.shadowColor = 'rgba(0,200,255,0.9)';
+            ctx.fill();
+            // Outer ring for wrists
+            if (i === 15 || i === 16) {
+                ctx.beginPath();
+                ctx.arc(x, y, r * 2.5, 0, Math.PI * 2);
+                ctx.strokeStyle = `rgba(0,220,255,${alpha * 0.35})`;
+                ctx.lineWidth = dpr;
+                ctx.shadowBlur = 6 * dpr;
+                ctx.stroke();
+                // Wrist label
+                ctx.font = `bold ${8 * dpr}px 'Share Tech Mono'`;
+                ctx.fillStyle = `rgba(0,220,255,${alpha * 0.8})`;
+                ctx.shadowBlur = 4 * dpr;
+                ctx.fillText(i === 15 ? 'L' : 'R', x + 8 * dpr, y - 6 * dpr);
+            }
+        } else {
+            // Regular body joint dots (green)
+            const r = 3.5 * dpr;
+            ctx.beginPath();
+            ctx.arc(x, y, r, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(57,255,20,${alpha})`;
+            ctx.shadowBlur = 12 * dpr;
+            ctx.shadowColor = 'rgba(57,255,20,0.9)';
+            ctx.fill();
+            // Outer ring for key body joints
+            if ([11,12,23,24].includes(i)) {
+                ctx.beginPath();
+                ctx.arc(x, y, r * 2.2, 0, Math.PI * 2);
+                ctx.strokeStyle = `rgba(57,255,20,${alpha * 0.4})`;
+                ctx.lineWidth = dpr;
+                ctx.shadowBlur = 0;
+                ctx.stroke();
+            }
         }
     });
     ctx.restore();
@@ -700,27 +776,15 @@ function drawBioSkeleton() {
 
 /* ══ Blue silhouette: inflated body volume ══ */
 function drawBodySilhouette(ctx, lm, W, H, dpr) {
-    // Key landmark indices for body outline
-    // We build a convex-ish hull from visible body landmarks,
-    // then expand each point outward from centroid for a "volume" effect.
-    // Use anatomically ordered points for a smooth body outline.
-
     const SILHOUETTE_ORDER = [
-        // head top → right ear → right shoulder → right elbow → right wrist
         0, 8, 6, 12, 14, 16,
-        // right wrist → right hip → right knee → right ankle → right foot
         16, 24, 26, 28, 32,
-        // across feet
         32, 31,
-        // left foot → left ankle → left knee → left hip
         31, 27, 25, 23,
-        // left hip → left wrist → left elbow → left shoulder
         23, 15, 13, 11,
-        // left shoulder → left ear → head top
         11, 5, 7, 0
     ];
 
-    // Collect unique ordered points that are visible enough
     const pts = [];
     let prevIdx = -1;
     SILHOUETTE_ORDER.forEach(i => {
@@ -733,11 +797,9 @@ function drawBodySilhouette(ctx, lm, W, H, dpr) {
 
     if (pts.length < 4) return;
 
-    // Compute centroid
     const cx = pts.reduce((s,p) => s+p.x, 0) / pts.length;
     const cy = pts.reduce((s,p) => s+p.y, 0) / pts.length;
 
-    // Expand each point outward from centroid (inflate by padding pixels)
     const PAD = 28 * dpr;
     const expanded = pts.map(p => {
         const dx = p.x - cx, dy = p.y - cy;
@@ -745,12 +807,10 @@ function drawBodySilhouette(ctx, lm, W, H, dpr) {
         return { x: p.x + (dx/dist)*PAD, y: p.y + (dy/dist)*PAD };
     });
 
-    // Draw filled silhouette with smooth curves
     ctx.save();
     ctx.beginPath();
     ctx.moveTo(expanded[0].x, expanded[0].y);
     for (let i = 1; i < expanded.length - 1; i++) {
-        // Catmull-Rom-ish smooth: use midpoints for quadratic bezier control
         const mx = (expanded[i].x + expanded[i+1].x) / 2;
         const my = (expanded[i].y + expanded[i+1].y) / 2;
         ctx.quadraticCurveTo(expanded[i].x, expanded[i].y, mx, my);
@@ -761,7 +821,6 @@ function drawBodySilhouette(ctx, lm, W, H, dpr) {
     );
     ctx.closePath();
 
-    // Blue semi-transparent fill with radial gradient for volume
     const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(W,H)*0.4);
     grad.addColorStop(0,   'rgba(30,100,255,0.22)');
     grad.addColorStop(0.5, 'rgba(0,140,255,0.18)');
@@ -769,14 +828,12 @@ function drawBodySilhouette(ctx, lm, W, H, dpr) {
     ctx.fillStyle = grad;
     ctx.fill();
 
-    // Blue glowing stroke for edge definition
     ctx.strokeStyle = 'rgba(0,160,255,0.55)';
     ctx.lineWidth = 1.5 * dpr;
     ctx.shadowBlur = 18 * dpr;
     ctx.shadowColor = 'rgba(0,120,255,0.7)';
     ctx.stroke();
 
-    // Inner soft glow ring (second pass, slightly smaller)
     ctx.beginPath();
     ctx.moveTo(pts[0].x, pts[0].y);
     for (let i = 1; i < pts.length - 1; i++) {
@@ -812,14 +869,12 @@ function drawBioFaceMesh() {
 
     const lm = faces[0];
 
-    // Eye openness for color
     const lEyeOpen = Math.hypot(lm[159].x - lm[145].x, lm[159].y - lm[145].y) > 0.015;
     const rEyeOpen = Math.hypot(lm[386].x - lm[374].x, lm[386].y - lm[374].y) > 0.015;
     const eyeState = lEyeOpen && rEyeOpen ? 'OPEN' : (!lEyeOpen && !rEyeOpen ? 'CLOSED' : 'PARTIAL');
 
     const faceColor = eyeState === 'CLOSED' ? '#ff3030' : '#39ff14';
 
-    // Helper: lm px with NO mirror (environment camera, no flip)
     function px(lmX) { return lmX * W; }
     function py(lmY) { return lmY * H; }
 
@@ -839,19 +894,16 @@ function drawBioFaceMesh() {
     ctx.shadowColor = faceColor;
 
     // Tesselation (subtle)
-    if (faceResults.multiFaceGeometry || true) {
-        ctx.globalAlpha = 0.12;
-        ctx.strokeStyle = faceColor;
-        ctx.lineWidth = 0.5;
-        ctx.shadowBlur = 0;
-        // Draw simplified mesh via key face connections
-        for (let i = 0; i < lm.length - 1; i += 4) {
-            if (!lm[i] || !lm[i+1]) continue;
-            ctx.beginPath();
-            ctx.moveTo(px(lm[i].x), py(lm[i].y));
-            ctx.lineTo(px(lm[i+1].x), py(lm[i+1].y));
-            ctx.stroke();
-        }
+    ctx.globalAlpha = 0.12;
+    ctx.strokeStyle = faceColor;
+    ctx.lineWidth = 0.5;
+    ctx.shadowBlur = 0;
+    for (let i = 0; i < lm.length - 1; i += 4) {
+        if (!lm[i] || !lm[i+1]) continue;
+        ctx.beginPath();
+        ctx.moveTo(px(lm[i].x), py(lm[i].y));
+        ctx.lineTo(px(lm[i+1].x), py(lm[i+1].y));
+        ctx.stroke();
     }
 
     // Oval face outline
@@ -876,7 +928,7 @@ function drawBioFaceMesh() {
     ctx.globalAlpha = 0.5; ctx.lineWidth = 0.8; ctx.shadowBlur = 3;
     drawContour(FACE_NOSE);
 
-    // Iris (landmarks 468-477 if refined)
+    // Iris
     [[469,470,471,472],[474,475,476,477]].forEach(ring => {
         if (!lm[ring[0]]) return;
         ctx.globalAlpha = 0.8; ctx.strokeStyle = '#00ffff'; ctx.lineWidth = 1.5; ctx.shadowBlur = 8; ctx.shadowColor = '#00ffff';
@@ -937,8 +989,6 @@ function drawBioCorners(ctx, W, H, dpr) {
     });
     ctx.shadowBlur = 0;
 }
-
-function lerp(a, b, t) { return a + (b - a) * t; }
 
 function addLogBio(msg) {
     const t = document.getElementById('bioTerminal'); if (!t) return;
