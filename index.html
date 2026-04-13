@@ -4,11 +4,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>myWLK v2 // BIOMETRIC</title>
-    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@300;500;700&display=swap" rel="stylesheet">
+    <title>myWLK v3 // BIOMETRIC</title>
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@300;500;700&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         :root {
@@ -16,6 +17,7 @@
             --blue-bright: #44ccff; --blue-glow: rgba(0,170,255,0.6);
             --bio: #39ff14; --bio-dim: rgba(57,255,20,0.5); --bio-glow: 0 0 12px #39ff14;
             --mono: 'Share Tech Mono', monospace; --sans: 'Rajdhani', sans-serif;
+            --orb: 'Orbitron', monospace;
         }
         body, html { margin:0; padding:0; width:100%; height:100%; overflow:hidden; background:#000; font-family:var(--mono); user-select:none; cursor:crosshair; }
         #container { position:relative; width:100vw; height:100vh; }
@@ -26,8 +28,8 @@
         #hudCanvas    { position:absolute; top:0; left:0; width:100%; height:100%; z-index:5; pointer-events:none; display:none; }
         #tapCanvas    { position:absolute; top:0; left:0; width:100%; height:100%; z-index:6; cursor:pointer; display:none; }
         #tgtCanvas    { position:absolute; top:0; left:0; width:100%; height:100%; z-index:7; pointer-events:none; display:none; }
-        #bioCanvas    { position:absolute; top:0; left:0; width:100%; height:100%; z-index:7; pointer-events:none; display:none; }
-        #bioFaceCanvas { position:absolute; top:0; left:0; width:100%; height:100%; z-index:8; pointer-events:none; display:none; }
+        /* BIO: unified canvas layer */
+        #bioMainCanvas { position:absolute; top:0; left:0; width:100%; height:100%; z-index:7; pointer-events:none; display:none; }
 
 ```
     #scanlines    { position:absolute; inset:0; pointer-events:none; z-index:9; display:none; background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.12) 2px,rgba(0,0,0,0.12) 3px); opacity:0.4; }
@@ -185,7 +187,7 @@
         letter-spacing:2px;
     }
     #bioTopTitle {
-        font-family:var(--sans); font-size:12px; font-weight:700;
+        font-family:var(--orb); font-size:11px; font-weight:700;
         letter-spacing:5px; color:var(--bio);
         animation:bioGlow 2s ease-in-out infinite;
     }
@@ -208,9 +210,65 @@
     }
     @keyframes fadeInBio { from{opacity:0;transform:translateX(-8px)} to{opacity:0.9} }
 
-    /* Skeleton status badge */
+    /* Bio metrics panel (right side) */
+    #bioMetrics {
+        position:absolute; right:20px; top:50%; transform:translateY(-50%);
+        z-index:15; pointer-events:none;
+        display:flex; flex-direction:column; gap:14px;
+        opacity:0; transition:opacity 0.5s;
+    }
+    #bioMetrics.visible { opacity:1; }
+    .bm-block { display:flex; flex-direction:column; align-items:flex-end; gap:3px; }
+    .bm-label { font-size:7px; letter-spacing:3px; color:rgba(57,255,20,0.4); font-family:var(--sans); font-weight:700; }
+    .bm-bar { width:80px; height:2px; background:rgba(57,255,20,0.1); position:relative; overflow:hidden; }
+    .bm-fill { position:absolute; top:0; left:0; height:100%; background:var(--bio); box-shadow:0 0 8px var(--bio); transition:width 0.4s ease; }
+    .bm-value { font-size:9px; letter-spacing:2px; color:var(--bio); font-family:var(--mono); }
+
+    /* Bio face info label above forehead */
+    #bioFaceInfo {
+        position:absolute; z-index:16; pointer-events:none;
+        font-size:9px; letter-spacing:1.5px; line-height:1.8;
+        color:var(--bio); opacity:0; transition:opacity 0.3s;
+        text-align:center; transform:translateX(-50%);
+        white-space:nowrap;
+        text-shadow:0 0 8px var(--bio);
+        font-family:var(--mono);
+    }
+    #bioFaceInfo.visible { opacity:1; }
+    #bioFaceInfo span { display:block; }
+
+    /* Reticle at face center */
+    #bioReticle {
+        position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+        width:120px; height:120px; pointer-events:none; opacity:0; transition:opacity 0.4s;
+        z-index:16;
+    }
+    #bioReticle.visible { opacity:1; }
+
+    /* Target acquired flash */
+    #bioAcqFlash { position:absolute; inset:0; pointer-events:none; z-index:30; opacity:0; }
+    #bioAcqFlash.flash { animation:aFlash 0.6s ease forwards; }
+    @keyframes aFlash { 0%{opacity:0;background:rgba(57,255,20,0.12)} 30%{opacity:1} 100%{opacity:0} }
+
+    /* Target status */
+    #bioTargetStatus {
+        position:absolute; top:44px; left:20px; z-index:15;
+        font-size:9px; letter-spacing:2px; color:rgba(57,255,20,0.6);
+        font-family:var(--mono);
+    }
+
+    /* Audio visualizer in bio mode */
+    #bioVizWrap {
+        position:absolute; bottom:48px; right:20px;
+        z-index:15; pointer-events:none;
+        width:160px;
+    }
+    #bioVizLabel { font-size:7px; letter-spacing:3px; color:rgba(57,255,20,0.3); margin-bottom:4px; font-family:var(--mono); }
+    #bioAudioViz { width:160px; height:40px; display:block; }
+
+    /* Skeleton badge */
     #skeletonBadge {
-        position:absolute; top:44px; left:50%; transform:translateX(-50%);
+        position:absolute; top:44px; right:50%; transform:translateX(50%);
         z-index:15; font-family:var(--sans); font-size:9px; font-weight:700;
         letter-spacing:3px; color:var(--bio); text-transform:uppercase;
         padding:5px 14px; border:1px solid rgba(57,255,20,0.4);
@@ -253,8 +311,8 @@
 <canvas id="hudCanvas"></canvas>
 <canvas id="tapCanvas"></canvas>
 <canvas id="tgtCanvas"></canvas>
-<canvas id="bioCanvas"></canvas>
-<canvas id="bioFaceCanvas"></canvas>
+<!-- Unified bio canvas: pose + face drawn together -->
+<canvas id="bioMainCanvas"></canvas>
 
 <div id="scanlines"></div>
 <div id="scanlinesTgt"></div>
@@ -330,12 +388,70 @@
 <!-- BIOMETRIC MODE UI -->
 <div id="bioUI">
     <div id="bioTopPanel">
-        <span id="bioSysLeft">SYS:BIOMETRIC_v2</span>
-        <span id="bioTopTitle">BIOMETRIC MODE</span>
+        <span id="bioSysLeft">SYS:BIOMETRIC_v3</span>
+        <span id="bioTopTitle">BIOMETRIC SCAN</span>
         <span id="bioTopTime">--:--:--</span>
     </div>
 
+    <div id="bioTargetStatus">> TARGET: SEEKING...</div>
     <div id="skeletonBadge">SKELETON TRACKING</div>
+
+    <!-- Reticle at face -->
+    <div id="bioReticle">
+        <svg viewBox="0 0 120 120" fill="none">
+            <g stroke="#39ff14" stroke-width="1" opacity="0.8">
+                <path d="M20 10L10 10L10 20"/><path d="M100 10L110 10L110 20"/>
+                <path d="M10 100L10 110L20 110"/><path d="M110 100L110 110L100 110"/>
+                <line x1="60" y1="50" x2="60" y2="56" stroke-width=".8" opacity=".5"/>
+                <line x1="60" y1="64" x2="60" y2="70" stroke-width=".8" opacity=".5"/>
+                <line x1="50" y1="60" x2="56" y2="60" stroke-width=".8" opacity=".5"/>
+                <line x1="64" y1="60" x2="70" y2="60" stroke-width=".8" opacity=".5"/>
+                <circle cx="60" cy="60" r="18" stroke-dasharray="8 6" opacity=".4">
+                    <animateTransform attributeName="transform" type="rotate" from="0 60 60" to="360 60 60" dur="4s" repeatCount="indefinite"/>
+                </circle>
+            </g>
+        </svg>
+    </div>
+
+    <!-- Face info above forehead -->
+    <div id="bioFaceInfo">
+        <span id="bfi-0"></span>
+        <span id="bfi-1"></span>
+        <span id="bfi-2"></span>
+    </div>
+
+    <!-- Acquired flash -->
+    <div id="bioAcqFlash"></div>
+
+    <!-- Right metrics panel -->
+    <div id="bioMetrics">
+        <div class="bm-block">
+            <div class="bm-label">SYMMETRY</div>
+            <div class="bm-bar"><div class="bm-fill" id="bm-symmetry" style="width:0%"></div></div>
+            <div class="bm-value" id="bmv-symmetry">--</div>
+        </div>
+        <div class="bm-block">
+            <div class="bm-label">CONFIDENCE</div>
+            <div class="bm-bar"><div class="bm-fill" id="bm-conf" style="width:0%"></div></div>
+            <div class="bm-value" id="bmv-conf">--</div>
+        </div>
+        <div class="bm-block">
+            <div class="bm-label">MESH PTS</div>
+            <div class="bm-bar"><div class="bm-fill" style="width:78%"></div></div>
+            <div class="bm-value">478</div>
+        </div>
+        <div class="bm-block">
+            <div class="bm-label">POSE CONF</div>
+            <div class="bm-bar"><div class="bm-fill" id="bm-pose" style="width:0%"></div></div>
+            <div class="bm-value" id="bmv-pose">--</div>
+        </div>
+    </div>
+
+    <!-- Audio visualizer -->
+    <div id="bioVizWrap">
+        <div id="bioVizLabel">AUDIO // dB</div>
+        <canvas id="bioAudioViz"></canvas>
+    </div>
 
     <div id="bioTerminal"></div>
 
@@ -403,7 +519,7 @@ void main(){
 
 <script>
 /* ══════════════════════════════════════════════════════
-   myWLK v2 — BIOMETRIC MODE (Face Mesh + Pose via MediaPipe)
+   myWLK v3 — Rear camera only | Bio = full myFACE integration
 ══════════════════════════════════════════════════════ */
 
 const MODES = ['wc','tgt','bio'];
@@ -418,10 +534,8 @@ const hudCtx     = hudCanvas.getContext('2d');
 const tapCanvas  = document.getElementById('tapCanvas');
 const tgtCanvas  = document.getElementById('tgtCanvas');
 const tgtCtx     = tgtCanvas.getContext('2d');
-const bioCanvas  = document.getElementById('bioCanvas');
-const bioCtx     = bioCanvas.getContext('2d');
-const bioFaceCanvas = document.getElementById('bioFaceCanvas');
-const bioFaceCtx    = bioFaceCanvas.getContext('2d');
+const bioMain    = document.getElementById('bioMainCanvas');
+const bioMainCtx = bioMain.getContext('2d');
 
 let model=null, allPredictions=[], currentMode='wc', systemReady=false;
 let gl=null, glProg=null, uRectsLoc, uCountLoc, uRevIdxLoc, uRevProgLoc;
@@ -438,53 +552,54 @@ let bioRunning=false;
 let lat=55.7558+(Math.random()-.5)*.01, lon=37.6173+(Math.random()-.5)*.01;
 let isTransitioning=false;
 
-/* ══ MediaPipe State ══ */
-let mpPose=null, mpFaceMesh=null, mpCamera=null;
+/* ── MediaPipe State ── */
+let mpPose=null, mpFaceMesh=null;
+let mpLoopActive=false;
 let poseResults=null, faceResults=null;
 let mpInitialized=false;
-let bioScanAngle=0;
-let prevPoseLandmarks=null;
-let motionLevel=0;
-let bioSpecValues={ pose:0, balance:0, motion:0, conf:0 };
-let faceVisible=false, bodyVisible=false;
+
+/* ── Bio Face Tracking State (myFACE) ── */
+let bioFaceVisible=false, bioBodyVisible=false;
+let bioPrevTarget=false;
+let bioAcquiredLogged=false;
+let bioTypeLines=['','',''];
+let bioTypeTargets=['ID: --','CONF: --','SCAN: ACTIVE'];
+let bioTypeIdx=0, bioTypeCharIdx=0, bioTypeTimer=0, bioTypeDone=false;
 let bioFrameGlitch=false, bioGlitchEnd=0;
 
-/* ══ Pose landmark connections ══ */
+/* ── Audio analyser ── */
+let audioCtxNode=null, analyser=null, freqData=null;
+
+/* ── Pose landmark connections ── */
 const POSE_CONNECTIONS = [
     [11,12],[11,13],[13,15],[12,14],[14,16],
     [11,23],[12,24],[23,24],
     [23,25],[24,26],[25,27],[26,28],
     [27,29],[28,30],[29,31],[30,32],
-    // head connections kept for structure but dots removed
     [0,1],[1,2],[2,3],[3,7],[0,4],[4,5],[5,6],[6,8]
 ];
-
-/* ══ Head landmark indices — dots HIDDEN, lines only ══ */
-// 0=nose, 1=l_eye_inner, 2=l_eye, 3=l_eye_outer, 4=r_eye_inner,
-// 5=r_eye, 6=r_eye_outer, 7=l_ear, 8=r_ear, 9=l_mouth, 10=r_mouth
 const HEAD_LANDMARKS = new Set([0,1,2,3,4,5,6,7,8,9,10]);
-
-/* ══ Hand/wrist landmark indices for special rendering ══ */
-// 15=l_wrist, 16=r_wrist, 17=l_pinky, 18=r_pinky,
-// 19=l_index, 20=r_index, 21=l_thumb, 22=r_thumb
 const HAND_LANDMARKS = new Set([15,16,17,18,19,20,21,22]);
 
-/* ══ Hand connections for detailed hand drawing ══ */
-const HAND_CONNECTIONS = [
-    [15,17],[15,19],[15,21],  // left wrist to fingers
-    [16,18],[16,20],[16,22],  // right wrist to fingers
-    [17,19],[19,21],          // left finger span
-    [18,20],[20,22]           // right finger span
-];
+/* ── Face Mesh landmark groups (from myFACE) ── */
+const FACE_OVAL        = [10,338,297,332,284,251,389,356,454,323,361,288,397,365,379,378,400,377,152,148,176,149,150,136,172,58,132,93,234,127,162,21,54,103,67,109,10];
+const FACE_L_EYE       = [33,7,163,144,145,153,154,155,133,173,157,158,159,160,161,246,33];
+const FACE_R_EYE       = [263,249,390,373,374,380,381,382,362,398,384,385,386,387,388,466,263];
+const FACE_MOUTH_OUTER_TOP    = [61,185,40,39,37,0,267,269,270,409,291];
+const FACE_MOUTH_OUTER_BOTTOM = [291,375,321,405,314,17,84,181,91,146,61];
+const FACE_MOUTH_INNER_TOP    = [78,191,80,81,82,13,312,311,310,415,308];
+const FACE_MOUTH_INNER_BOTTOM = [308,324,318,402,317,14,87,178,88,95,78];
+const FACE_L_BROW      = [70,63,105,66,107,55,65,52,53,46];
+const FACE_R_BROW      = [300,293,334,296,336,285,295,282,283,276];
+const FACE_KEY_DOTS    = [1,4,6,10,152,234,454,33,263,61,291,168,0];
 
-/* ══ Face Mesh landmark groups ══ */
-const FACE_OVAL = [10,338,297,332,284,251,389,356,454,323,361,288,397,365,379,378,400,377,152,148,176,149,150,136,172,58,132,93,234,127,162,21,54,103,67,109,10];
-const FACE_L_EYE = [33,7,163,144,145,153,154,155,133,173,157,158,159,160,161,246,33];
-const FACE_R_EYE = [263,249,390,373,374,380,381,382,362,398,384,385,386,387,388,466,263];
-const FACE_MOUTH_OUTER = [61,185,40,39,37,0,267,269,270,409,291,375,321,405,314,17,84,181,91,146,61];
-const FACE_L_BROW = [70,63,105,66,107,55,65,52,53,46];
-const FACE_R_BROW = [300,293,334,296,336,285,295,282,283,276];
-const FACE_NOSE = [168,6,197,195,5,4,1,19,94,2];
+/* ── Tesselation pairs (simplified subset for performance) ── */
+// We'll use MediaPipe's FACEMESH_TESSELATION if available, or a subset
+function getTesselation() {
+    if (typeof FACEMESH_TESSELATION !== 'undefined') return FACEMESH_TESSELATION;
+    // fallback: generate some cross-connections
+    return [];
+}
 
 /* ══ START ══ */
 document.getElementById('startBtn').onclick = async () => {
@@ -492,21 +607,41 @@ document.getElementById('startBtn').onclick = async () => {
     btn.style.opacity='0'; btn.style.transition='opacity 0.5s';
     setTimeout(()=>btn.style.display='none',500);
     try {
-        // Always use rear (environment) camera
+        // REAR CAMERA ONLY — always environment
         const stream = await navigator.mediaDevices.getUserMedia({
             video:{ facingMode:{ exact:'environment' }, width:{ideal:1280}, height:{ideal:720} },
             audio:false
         }).catch(() => navigator.mediaDevices.getUserMedia({
             video:{ facingMode:'environment', width:{ideal:1280}, height:{ideal:720} },
             audio:false
+        })).catch(() => navigator.mediaDevices.getUserMedia({
+            video:{ width:{ideal:1280}, height:{ideal:720} },
+            audio:false
         }));
+
         video.srcObject = stream;
         await new Promise(resolve=>{ video.onloadedmetadata=()=>{ video.play(); resolve(); }; });
+
+        // Init audio for bio visualizer (no mic needed, just try)
+        try {
+            audioCtxNode = new (window.AudioContext || window.webkitAudioContext)();
+            analyser = audioCtxNode.createAnalyser();
+            analyser.fftSize = 256;
+            analyser.smoothingTimeConstant = 0.75;
+            // Try to get mic for audio vis
+            const micStream = await navigator.mediaDevices.getUserMedia({ audio:true }).catch(()=>null);
+            if (micStream) {
+                audioCtxNode.createMediaStreamSource(micStream).connect(analyser);
+                freqData = new Uint8Array(analyser.frequencyBinCount);
+            }
+        } catch(e) {}
+
         model = await cocoSsd.load();
         document.getElementById('modelStat').textContent='COCO-SSD';
         document.getElementById('modeVal').textContent='ACTIVE';
         systemReady=true;
         initWebGL(); initTapHandler(); detectLoop(); drawHUD(); startCoordsDrift(); startBioTopClock();
+        startBioAudioViz();
         setMode('wc',false);
         document.getElementById('modeToggle').style.display='block';
         document.getElementById('modeDots').style.display='flex';
@@ -514,9 +649,42 @@ document.getElementById('startBtn').onclick = async () => {
         addLogWC("🎨 TAP BOX = REAL VIEW (3s)");
     } catch(e) {
         console.error('Camera Error:',e);
-        alert('Camera error: '+e.message+'\nEnsure HTTPS.');
+        alert('Camera error: '+e.message+'\nEnsure HTTPS and camera permissions.');
     }
 };
+
+/* ══ Audio Visualizer for Bio Mode ══ */
+function startBioAudioViz() {
+    const canvas = document.getElementById('bioAudioViz');
+    const ctx2 = canvas.getContext('2d');
+    function loop() {
+        const W = canvas.offsetWidth || 160;
+        const H = canvas.offsetHeight || 40;
+        if (canvas.width !== W) canvas.width = W;
+        if (canvas.height !== H) canvas.height = H;
+
+        ctx2.clearRect(0,0,W,H);
+        if (!analyser || !freqData) {
+            ctx2.strokeStyle='rgba(57,255,20,0.15)';
+            ctx2.lineWidth=1;
+            ctx2.beginPath(); ctx2.moveTo(0,H/2); ctx2.lineTo(W,H/2); ctx2.stroke();
+        } else {
+            analyser.getByteFrequencyData(freqData);
+            const N=freqData.length, barW=W/N, gap=Math.max(barW*0.12,0.8);
+            for(let i=0;i<N;i++){
+                const v=freqData[i]/255;
+                const barH=Math.max(v*H,1.5);
+                const a=0.3+v*0.7;
+                ctx2.fillStyle=`rgba(57,255,20,${a})`;
+                ctx2.fillRect(i*barW, H-barH, barW-gap, barH);
+                ctx2.fillStyle=`rgba(57,255,20,${a*0.2})`;
+                ctx2.fillRect(i*barW, 0, barW-gap, barH*0.3);
+            }
+        }
+        requestAnimationFrame(loop);
+    }
+    loop();
+}
 
 /* ══ MediaPipe Init ══ */
 async function initMediaPipe() {
@@ -526,29 +694,14 @@ async function initMediaPipe() {
 
     try {
         loadText.textContent = 'LOADING POSE NET...';
-        mpPose = new Pose({
-            locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${f}`
-        });
-        mpPose.setOptions({
-            modelComplexity: 1,
-            smoothLandmarks: true,
-            enableSegmentation: false,
-            minDetectionConfidence: 0.5,
-            minTrackingConfidence: 0.5
-        });
+        mpPose = new Pose({ locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${f}` });
+        mpPose.setOptions({ modelComplexity:1, smoothLandmarks:true, enableSegmentation:false, minDetectionConfidence:0.5, minTrackingConfidence:0.5 });
         mpPose.onResults(onPoseResults);
         await mpPose.initialize();
 
         loadText.textContent = 'LOADING FACE MESH...';
-        mpFaceMesh = new FaceMesh({
-            locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${f}`
-        });
-        mpFaceMesh.setOptions({
-            maxNumFaces: 1,
-            refineLandmarks: true,
-            minDetectionConfidence: 0.5,
-            minTrackingConfidence: 0.5
-        });
+        mpFaceMesh = new FaceMesh({ locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${f}` });
+        mpFaceMesh.setOptions({ maxNumFaces:1, refineLandmarks:true, minDetectionConfidence:0.5, minTrackingConfidence:0.5 });
         mpFaceMesh.onResults(onFaceResults);
         await mpFaceMesh.initialize();
 
@@ -557,7 +710,7 @@ async function initMediaPipe() {
         addLogBio('◈ POSE NET ONLINE');
         addLogBio('◈ FACE MESH ONLINE');
         addLogBio('⬡ BIOMETRIC SCAN ACTIVE');
-        startMPCamera();
+        startMPLoop();
     } catch(e) {
         loadText.textContent = 'ERROR: ' + e.message;
         console.error('MediaPipe init error:', e);
@@ -565,563 +718,534 @@ async function initMediaPipe() {
     }
 }
 
-function startMPCamera() {
-    if (mpCamera) { try { mpCamera.stop(); } catch(_) {} }
+function startMPLoop() {
+    mpLoopActive = true;
     let poseFrame=0, faceFrame=0;
-    // ИЗМЕНЕНИЕ 1: принудительно задняя камера для MediaPipe Camera
-    // Camera util берёт текущий видеопоток из элемента video — он уже environment.
-    // Создаём свой обработчик без Camera utils, чтобы не переинициализировать поток.
-    // Вместо new Camera() используем requestAnimationFrame loop:
-    let mpLoopActive = true;
     async function mpLoop() {
         if (!mpLoopActive) return;
         if (bioRunning && mpInitialized && video.readyState >= 2) {
-            if (poseFrame % 2 === 0) {
-                try { await mpPose.send({ image: video }); } catch(_) {}
-            }
-            if (faceFrame % 3 === 0) {
-                try { await mpFaceMesh.send({ image: video }); } catch(_) {}
-            }
+            if (poseFrame % 2 === 0) { try { await mpPose.send({ image: video }); } catch(_) {} }
+            if (faceFrame % 2 === 0) { try { await mpFaceMesh.send({ image: video }); } catch(_) {} }
             poseFrame++; faceFrame++;
         }
-        setTimeout(mpLoop, 33); // ~30fps
+        setTimeout(mpLoop, 33);
     }
-    // Store stop function
-    mpCamera = { stop: () => { mpLoopActive = false; } };
     mpLoop();
 }
+
+function stopMPLoop() { mpLoopActive = false; }
 
 function onPoseResults(results) {
     if (!bioRunning) return;
     poseResults = results;
-    drawBioSkeleton();
+    drawBioFrame();
 }
 
 function onFaceResults(results) {
     if (!bioRunning) return;
     faceResults = results;
-    drawBioFaceMesh();
+    drawBioFrame();
 }
 
-/* ══ Draw Skeleton ══ */
-function drawBioSkeleton() {
-    if (!poseResults) return;
+/* ══ UNIFIED BIO DRAW ══ */
+function drawBioFrame() {
     const dpr = devicePixelRatio;
-    bioCanvas.width  = innerWidth * dpr;
-    bioCanvas.height = innerHeight * dpr;
-    const ctx = bioCtx;
-    const W = bioCanvas.width, H = bioCanvas.height;
-    ctx.clearRect(0, 0, W, H);
+    const W = innerWidth * dpr, H = innerHeight * dpr;
+    if (bioMain.width !== W) bioMain.width = W;
+    if (bioMain.height !== H) bioMain.height = H;
 
-    const lm = poseResults.poseLandmarks;
-    bodyVisible = !!(lm && lm.length > 0);
+    const ctx = bioMainCtx;
+    ctx.clearRect(0,0,W,H);
 
-    document.getElementById('skeletonBadge').classList.toggle('show', bodyVisible);
-    document.getElementById('bioCoordsR').textContent = `FACE:${faceVisible?'01':'00'} BODY:${bodyVisible?'01':'00'}`;
-
-    if (!bodyVisible) {
-        drawBioGrid(ctx, W, H, dpr);
-        drawBioCorners(ctx, W, H, dpr);
-        return;
-    }
-
-    // Avg confidence for label
-    const avgConf = lm.reduce((s,p) => s + (p.visibility||0), 0) / lm.length;
-
-    // Draw grid background
+    // Grid background
     drawBioGrid(ctx, W, H, dpr);
 
-    // ── LAYER 1: Blue silhouette ──
-    drawBodySilhouette(ctx, lm, W, H, dpr);
+    // ── Pose skeleton ──
+    const lm = poseResults && poseResults.poseLandmarks;
+    bioBodyVisible = !!(lm && lm.length > 0);
 
-    // ── Colour palette per body region ──
-    // torso: bright green | arms: yellow-green | legs: teal-blue | hands: cyan | head lines: dim magenta
-    function segColor(a, b) {
-        const isHead = HEAD_LANDMARKS.has(a) || HEAD_LANDMARKS.has(b);
-        const isArm  = [11,12,13,14].some(x=>x===a||x===b);
-        const isLeg  = [23,24,25,26,27,28,29,30,31,32].some(x=>x===a||x===b);
-        const isTors = [11,12,23,24].every(x=>[a,b].includes(x)) ||
-                       ([11,23].some(x=>x===a||x===b) && [12,24].some(x=>x===a||x===b));
-        if (isHead) return { r:200, g:80,  b:255 }; // dim magenta
-        if (isArm)  return { r:160, g:255, b:50  }; // yellow-green
-        if (isLeg)  return { r:0,   g:180, b:255 }; // sky-blue
-        return            { r:57,  g:255, b:20  }; // bright green (torso)
+    if (bioBodyVisible) {
+        drawBodySilhouette(ctx, lm, W, H, dpr);
+        drawPoseSkeleton(ctx, lm, W, H, dpr);
+        drawPoseJoints(ctx, lm, W, H, dpr);
+        drawHandDetails(ctx, lm, W, H, dpr);
+        drawPoseBBox(ctx, lm, W, H, dpr);
+
+        // Update pose metric
+        const avgConf = lm.reduce((s,p)=>s+(p.visibility||0),0)/lm.length;
+        const pPct = Math.round(avgConf*100);
+        document.getElementById('bm-pose').style.width = pPct+'%';
+        document.getElementById('bmv-pose').textContent = pPct+'%';
     }
 
-    // ── LAYER 2: Skeleton connections ──
-    ctx.save();
-    POSE_CONNECTIONS.forEach(([a, b]) => {
-        const pa = lm[a], pb = lm[b];
-        if (!pa || !pb) return;
-        if (pa.visibility < 0.3 || pb.visibility < 0.3) return;
-        const x1 = pa.x * W, y1 = pa.y * H;
-        const x2 = pb.x * W, y2 = pb.y * H;
-        const conf = (pa.visibility + pb.visibility) / 2;
-        const alpha = 0.45 + conf * 0.55;
-        const isHead = HEAD_LANDMARKS.has(a) || HEAD_LANDMARKS.has(b);
-        const c = segColor(a, b);
-        const col = `rgba(${c.r},${c.g},${c.b},${isHead ? alpha * 0.28 : alpha})`;
+    // ── Face mesh (myFACE style) ──
+    const faces = faceResults && faceResults.multiFaceLandmarks;
+    bioFaceVisible = !!(faces && faces.length > 0);
 
-        ctx.beginPath();
-        ctx.strokeStyle = col;
-        ctx.lineWidth = isHead ? 0.8 * dpr : 2.5 * dpr;
-        ctx.shadowBlur = isHead ? 4 * dpr : 14 * dpr;
-        ctx.shadowColor = col;
-        ctx.moveTo(x1, y1); ctx.lineTo(x2, y2);
-        ctx.stroke();
+    const now = performance.now();
+    if (bioFaceVisible) {
+        const faceLM = faces[0];
 
-        // Double-pass glow for body bones (not head)
-        if (!isHead && conf > 0.6) {
-            ctx.beginPath();
-            ctx.strokeStyle = `rgba(${c.r},${c.g},${c.b},${alpha * 0.2})`;
-            ctx.lineWidth = 6 * dpr;
-            ctx.shadowBlur = 20 * dpr;
-            ctx.moveTo(x1, y1); ctx.lineTo(x2, y2);
-            ctx.stroke();
+        // Determine eye state & color
+        const ld = Math.hypot(faceLM[159].x - faceLM[145].x, faceLM[159].y - faceLM[145].y);
+        const rd = Math.hypot(faceLM[386].x - faceLM[374].x, faceLM[386].y - faceLM[374].y);
+        const eyesClosed = ld < 0.015 && rd < 0.015;
+        const faceColor = eyesClosed ? '#ff3030' : '#39ff14';
+
+        drawFaceTesselation(ctx, faceLM, W, H, faceColor);
+        drawFaceOval(ctx, faceLM, W, H, faceColor);
+        drawFaceEyes(ctx, faceLM, W, H, faceColor);
+        drawFaceMouth(ctx, faceLM, W, H, faceColor);
+        drawFaceIris(ctx, faceLM, W, H);
+        drawFaceKeyDots(ctx, faceLM, W, H, faceColor);
+        drawFaceScanLine(ctx, faceLM, W, H);
+
+        // Update face metrics
+        const symm = Math.abs(faceLM[234].x - (1-faceLM[454].x));
+        const symmPct = Math.max(0, Math.min(100, Math.round((1-symm*10)*100)));
+        document.getElementById('bm-symmetry').style.width = symmPct+'%';
+        document.getElementById('bmv-symmetry').textContent = symmPct+'%';
+        const conf = 88+Math.floor(Math.random()*4);
+        document.getElementById('bm-conf').style.width = conf+'%';
+        document.getElementById('bmv-conf').textContent = conf+'%';
+
+        // Reticle position at nose tip
+        const nosePt = faceLM[1];
+        const noseX = nosePt.x * innerWidth;
+        const noseY = nosePt.y * innerHeight;
+        const reticle = document.getElementById('bioReticle');
+        reticle.style.left = noseX+'px'; reticle.style.top = noseY+'px';
+        reticle.style.transform = 'translate(-50%,-50%)';
+
+        // Target acquired logic
+        if (!bioPrevTarget) {
+            reticle.classList.add('visible');
+            document.getElementById('bioMetrics').classList.add('visible');
+            document.getElementById('bioTargetStatus').textContent = '> TARGET: ACQUIRED';
+            const acqFlash = document.getElementById('bioAcqFlash');
+            acqFlash.classList.remove('flash'); void acqFlash.offsetWidth; acqFlash.classList.add('flash');
+            bioTypeDone=false; bioTypeIdx=0; bioTypeCharIdx=0;
+            bioTypeLines=['','',''];
+            bioTypeTargets=[
+                'ID: '+Math.floor(Math.random()*9000+1000).toString(16).toUpperCase(),
+                'CONF: '+(88+Math.floor(Math.random()*12))+'%',
+                'SCAN: ACTIVE'
+            ];
+            if (!bioAcquiredLogged) { addLogBio('◈ BIOMETRIC TARGET ACQUIRED'); bioAcquiredLogged=true; }
         }
-    });
-    ctx.restore();
+        bioPrevTarget = true;
 
-    // ── LAYER 2b: Hand area — fan + palm fill ──
-    function drawHand(wristIdx, pinkyIdx, indexIdx, thumbIdx) {
-        const w = lm[wristIdx], pk = lm[pinkyIdx], ix = lm[indexIdx], th = lm[thumbIdx];
-        if (!w || !pk || !ix || !th) return;
-        if (w.visibility < 0.35) return;
-        const wx = w.x*W,  wy = w.y*H;
-        const pkx = pk.x*W, pky = pk.y*H;
-        const ixx = ix.x*W, ixy = ix.y*H;
-        const thx = th.x*W, thy = th.y*H;
-        const alpha = 0.6 + w.visibility * 0.4;
-        const pulseFill = 0.08 + Math.sin(Date.now() / 350) * 0.04;
+        // Face info typewriter above forehead
+        updateBioFaceInfo(faceLM, W, H, now);
 
-        ctx.save();
-        // Palm filled polygon
-        ctx.beginPath();
-        ctx.moveTo(wx, wy);
-        ctx.lineTo(pkx, pky);
-        ctx.lineTo(ixx, ixy);
-        ctx.lineTo(thx, thy);
-        ctx.closePath();
-        ctx.fillStyle = `rgba(0,220,255,${pulseFill})`;
-        ctx.fill();
-        ctx.strokeStyle = `rgba(0,220,255,${alpha * 0.75})`;
-        ctx.lineWidth = 1.5 * dpr;
-        ctx.shadowBlur = 12 * dpr;
-        ctx.shadowColor = 'rgba(0,220,255,0.9)';
-        ctx.stroke();
-
-        // Rays from wrist to each finger tip
-        [[pkx,pky],[ixx,ixy],[thx,thy]].forEach(([fx,fy]) => {
-            ctx.beginPath();
-            ctx.strokeStyle = `rgba(0,220,255,${alpha * 0.9})`;
-            ctx.lineWidth = 2 * dpr;
-            ctx.shadowBlur = 14 * dpr;
-            ctx.moveTo(wx, wy); ctx.lineTo(fx, fy);
-            ctx.stroke();
-        });
-
-        // Wrist ring + label
-        ctx.beginPath();
-        ctx.arc(wx, wy, 7 * dpr, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(0,220,255,${alpha})`;
-        ctx.shadowBlur = 18 * dpr;
-        ctx.shadowColor = 'rgba(0,220,255,1)';
-        ctx.fill();
-        ctx.beginPath();
-        ctx.arc(wx, wy, 13 * dpr, 0, Math.PI * 2);
-        ctx.strokeStyle = `rgba(0,220,255,${alpha * 0.4})`;
-        ctx.lineWidth = dpr;
-        ctx.shadowBlur = 8 * dpr;
-        ctx.stroke();
-
-        // Finger tip dots
-        [[pkx,pky],[ixx,ixy],[thx,thy]].forEach(([fx,fy]) => {
-            ctx.beginPath();
-            ctx.arc(fx, fy, 4 * dpr, 0, Math.PI * 2);
-            ctx.fillStyle = `rgba(120,240,255,${alpha * 0.9})`;
-            ctx.shadowBlur = 10 * dpr;
-            ctx.shadowColor = 'rgba(0,220,255,0.8)';
-            ctx.fill();
-        });
-
-        // Label
-        ctx.font = `bold ${9 * dpr}px 'Share Tech Mono'`;
-        ctx.fillStyle = `rgba(0,220,255,${alpha * 0.85})`;
-        ctx.shadowBlur = 5 * dpr;
-        ctx.fillText(wristIdx === 15 ? 'L-HAND' : 'R-HAND', wx + 16*dpr, wy - 8*dpr);
-        ctx.restore();
+    } else {
+        if (bioPrevTarget) {
+            document.getElementById('bioReticle').classList.remove('visible');
+            document.getElementById('bioMetrics').classList.remove('visible');
+            document.getElementById('bioTargetStatus').textContent = '> TARGET: SEEKING...';
+            clearBioFaceInfo();
+            addLogBio('TARGET LOST — RESUMING SCAN');
+            bioAcquiredLogged=false;
+        }
+        bioPrevTarget = false;
     }
 
-    // Left hand: wrist=15 pinky=17 index=19 thumb=21
-    // Right hand: wrist=16 pinky=18 index=20 thumb=22
-    drawHand(15, 17, 19, 21);
-    drawHand(16, 18, 20, 22);
-
-    // ── LAYER 3: Body joint dots (no head, no hands — handled separately) ──
-    ctx.save();
-    lm.forEach((p, i) => {
-        if (HEAD_LANDMARKS.has(i)) return;
-        if (HAND_LANDMARKS.has(i)) return; // hands drawn above
-        if (p.visibility < 0.38) return;
-
-        const x = p.x * W, y = p.y * H;
-        const alpha = 0.55 + p.visibility * 0.45;
-        const c = segColor(i, i);
-        const col = `rgba(${c.r},${c.g},${c.b},${alpha})`;
-        const isKey = [11,12,23,24,13,14,25,26,27,28].includes(i);
-        const r = isKey ? 5 * dpr : 3.5 * dpr;
-
-        // Glow fill
-        ctx.beginPath();
-        ctx.arc(x, y, r, 0, Math.PI * 2);
-        ctx.fillStyle = col;
-        ctx.shadowBlur = 16 * dpr;
-        ctx.shadowColor = col;
-        ctx.fill();
-
-        // Outer ring on key joints (shoulders, hips, knees, ankles)
-        if (isKey) {
-            ctx.beginPath();
-            ctx.arc(x, y, r * 2.2, 0, Math.PI * 2);
-            ctx.strokeStyle = `rgba(${c.r},${c.g},${c.b},${alpha * 0.35})`;
-            ctx.lineWidth = dpr;
-            ctx.shadowBlur = 8 * dpr;
-            ctx.stroke();
-        }
-
-        // Shoulder/hip labels
-        if ([11,12,23,24].includes(i)) {
-            const labels = {11:'L-SH', 12:'R-SH', 23:'L-HIP', 24:'R-HIP'};
-            ctx.font = `${7 * dpr}px 'Share Tech Mono'`;
-            ctx.fillStyle = `rgba(${c.r},${c.g},${c.b},0.65)`;
-            ctx.shadowBlur = 3 * dpr;
-            ctx.fillText(labels[i], x + 8*dpr, y - 6*dpr);
-        }
-    });
-    ctx.restore();
-
-    // ── LAYER 4: Bounding box ──
-    const visLm = lm.filter(p => p.visibility > 0.4);
-    if (visLm.length > 4) {
-        const xs = visLm.map(p => p.x * W);
-        const ys = visLm.map(p => p.y * H);
-        const bx = Math.min(...xs) - 20*dpr;
-        const by = Math.min(...ys) - 20*dpr;
-        const bw = Math.max(...xs) - bx + 20*dpr;
-        const bh = Math.max(...ys) - by + 20*dpr;
-        const pulse = 0.6 + Math.sin(Date.now() / 400) * 0.4;
-        ctx.save();
-        ctx.strokeStyle = `rgba(57,255,20,${0.3 * pulse})`;
-        ctx.lineWidth = dpr; ctx.setLineDash([6*dpr, 8*dpr]);
-        ctx.strokeRect(bx, by, bw, bh); ctx.setLineDash([]);
-        const cl = Math.min(bw, bh) * 0.12;
-        ctx.strokeStyle = `rgba(57,255,20,${0.7 + 0.3 * pulse})`;
-        ctx.lineWidth = 2 * dpr; ctx.shadowBlur = 10; ctx.shadowColor = 'rgba(57,255,20,0.8)';
-        ctx.beginPath();
-        ctx.moveTo(bx, by+cl); ctx.lineTo(bx, by); ctx.lineTo(bx+cl, by);
-        ctx.moveTo(bx+bw-cl, by); ctx.lineTo(bx+bw, by); ctx.lineTo(bx+bw, by+cl);
-        ctx.moveTo(bx+bw, by+bh-cl); ctx.lineTo(bx+bw, by+bh); ctx.lineTo(bx+bw-cl, by+bh);
-        ctx.moveTo(bx+cl, by+bh); ctx.lineTo(bx, by+bh); ctx.lineTo(bx, by+bh-cl);
-        ctx.stroke();
-        ctx.shadowBlur = 6;
-        ctx.fillStyle = 'rgba(57,255,20,0.85)';
-        ctx.font = `bold ${10*dpr}px 'Share Tech Mono'`;
-        ctx.fillText(`BODY | CONF:${Math.round(avgConf*100)}%`, bx, by - 6*dpr);
-        ctx.restore();
-    }
+    // Update badge & status
+    document.getElementById('skeletonBadge').classList.toggle('show', bioBodyVisible);
+    document.getElementById('bioCoordsR').textContent = `FACE:${bioFaceVisible?'01':'00'} BODY:${bioBodyVisible?'01':'00'}`;
 
     drawBioCorners(ctx, W, H, dpr);
 }
 
-/* ══ Blue silhouette: inflated body volume ══ */
-function drawBodySilhouette(ctx, lm, W, H, dpr) {
-    const SILHOUETTE_ORDER = [
-        0, 8, 6, 12, 14, 16,
-        16, 24, 26, 28, 32,
-        32, 31,
-        31, 27, 25, 23,
-        23, 15, 13, 11,
-        11, 5, 7, 0
-    ];
+/* ── Face drawing helpers (landmark coords → pixels, NO mirror since rear cam) ── */
+function flx(lmX, W) { return lmX * W; } // rear cam: no mirror
+function fly(lmY, H) { return lmY * H; }
 
-    const pts = [];
-    let prevIdx = -1;
-    SILHOUETTE_ORDER.forEach(i => {
-        if (i === prevIdx) return;
-        prevIdx = i;
-        const p = lm[i];
-        if (!p || p.visibility < 0.25) return;
-        pts.push({ x: p.x * W, y: p.y * H });
-    });
-
-    if (pts.length < 4) return;
-
-    const cx = pts.reduce((s,p) => s+p.x, 0) / pts.length;
-    const cy = pts.reduce((s,p) => s+p.y, 0) / pts.length;
-
-    const PAD = 28 * dpr;
-    const expanded = pts.map(p => {
-        const dx = p.x - cx, dy = p.y - cy;
-        const dist = Math.sqrt(dx*dx + dy*dy) || 1;
-        return { x: p.x + (dx/dist)*PAD, y: p.y + (dy/dist)*PAD };
-    });
-
+function drawContourOnMain(ctx, lm, indices, W, H, color, lw, alpha, close) {
     ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = lw;
+    ctx.shadowColor = color; ctx.shadowBlur = 5;
     ctx.beginPath();
-    ctx.moveTo(expanded[0].x, expanded[0].y);
-    for (let i = 1; i < expanded.length - 1; i++) {
-        const mx = (expanded[i].x + expanded[i+1].x) / 2;
-        const my = (expanded[i].y + expanded[i+1].y) / 2;
-        ctx.quadraticCurveTo(expanded[i].x, expanded[i].y, mx, my);
-    }
-    ctx.quadraticCurveTo(
-        expanded[expanded.length-1].x, expanded[expanded.length-1].y,
-        expanded[0].x, expanded[0].y
-    );
-    ctx.closePath();
-
-    const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(W,H)*0.4);
-    grad.addColorStop(0,   'rgba(30,100,255,0.22)');
-    grad.addColorStop(0.5, 'rgba(0,140,255,0.18)');
-    grad.addColorStop(1,   'rgba(0,80,200,0.08)');
-    ctx.fillStyle = grad;
-    ctx.fill();
-
-    ctx.strokeStyle = 'rgba(0,160,255,0.55)';
-    ctx.lineWidth = 1.5 * dpr;
-    ctx.shadowBlur = 18 * dpr;
-    ctx.shadowColor = 'rgba(0,120,255,0.7)';
+    let started=false;
+    indices.forEach(i => {
+        const p=lm[i]; if(!p) return;
+        if(!started){ ctx.moveTo(flx(p.x,W), fly(p.y,H)); started=true; }
+        else ctx.lineTo(flx(p.x,W), fly(p.y,H));
+    });
+    if(close) ctx.closePath();
     ctx.stroke();
-
-    ctx.beginPath();
-    ctx.moveTo(pts[0].x, pts[0].y);
-    for (let i = 1; i < pts.length - 1; i++) {
-        const mx = (pts[i].x + pts[i+1].x) / 2;
-        const my = (pts[i].y + pts[i+1].y) / 2;
-        ctx.quadraticCurveTo(pts[i].x, pts[i].y, mx, my);
-    }
-    ctx.quadraticCurveTo(pts[pts.length-1].x, pts[pts.length-1].y, pts[0].x, pts[0].y);
-    ctx.closePath();
-    ctx.strokeStyle = 'rgba(80,180,255,0.25)';
-    ctx.lineWidth = dpr;
-    ctx.shadowBlur = 8 * dpr;
-    ctx.shadowColor = 'rgba(0,170,255,0.4)';
-    ctx.stroke();
-
     ctx.restore();
 }
 
-/* ══ Draw Face Mesh ══ */
-function drawBioFaceMesh() {
-    if (!faceResults) return;
-    const dpr = devicePixelRatio;
-    bioFaceCanvas.width  = innerWidth * dpr;
-    bioFaceCanvas.height = innerHeight * dpr;
-    const ctx = bioFaceCtx;
-    const W = bioFaceCanvas.width, H = bioFaceCanvas.height;
-    ctx.clearRect(0, 0, W, H);
-
-    const faces = faceResults.multiFaceLandmarks;
-    faceVisible = !!(faces && faces.length > 0);
-
-    if (!faceVisible) return;
-
-    const lm = faces[0];
-
-    const lEyeOpen = Math.hypot(lm[159].x - lm[145].x, lm[159].y - lm[145].y) > 0.015;
-    const rEyeOpen = Math.hypot(lm[386].x - lm[374].x, lm[386].y - lm[374].y) > 0.015;
-    const eyeState = lEyeOpen && rEyeOpen ? 'OPEN' : (!lEyeOpen && !rEyeOpen ? 'CLOSED' : 'PARTIAL');
-
-    const faceColor = eyeState === 'CLOSED' ? '#ff3030' : '#39ff14';
-
-    function px(lmX) { return lmX * W; }
-    function py(lmY) { return lmY * H; }
-
-    function drawContour(indices, close=false) {
-        ctx.beginPath();
-        let started = false;
-        indices.forEach(i => {
-            const p = lm[i]; if (!p) return;
-            if (!started) { ctx.moveTo(px(p.x), py(p.y)); started=true; }
-            else ctx.lineTo(px(p.x), py(p.y));
-        });
-        if (close) ctx.closePath();
-        ctx.stroke();
-    }
-
+function drawFaceTesselation(ctx, lm, W, H, color) {
+    const tess = getTesselation();
+    if (!tess.length) return;
     ctx.save();
-    ctx.shadowColor = faceColor;
-
-    // Tesselation (subtle)
-    ctx.globalAlpha = 0.12;
-    ctx.strokeStyle = faceColor;
-    ctx.lineWidth = 0.5;
+    ctx.globalAlpha = 0.13;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 0.4;
     ctx.shadowBlur = 0;
-    for (let i = 0; i < lm.length - 1; i += 4) {
-        if (!lm[i] || !lm[i+1]) continue;
-        ctx.beginPath();
-        ctx.moveTo(px(lm[i].x), py(lm[i].y));
-        ctx.lineTo(px(lm[i+1].x), py(lm[i+1].y));
-        ctx.stroke();
-    }
+    ctx.beginPath();
+    tess.forEach(([a,b]) => {
+        const pa=lm[a], pb=lm[b]; if(!pa||!pb) return;
+        ctx.moveTo(flx(pa.x,W), fly(pa.y,H));
+        ctx.lineTo(flx(pb.x,W), fly(pb.y,H));
+    });
+    ctx.stroke();
+    ctx.restore();
+}
 
-    // Oval face outline
-    ctx.globalAlpha = 0.5; ctx.strokeStyle = faceColor; ctx.lineWidth = 1.2; ctx.shadowBlur = 5;
-    drawContour(FACE_OVAL, false);
+function drawFaceOval(ctx, lm, W, H, color) {
+    drawContourOnMain(ctx, lm, FACE_OVAL, W, H, color, 1.2, 0.5, false);
+}
 
-    // Eyes
-    ctx.globalAlpha = 0.9; ctx.strokeStyle = faceColor; ctx.lineWidth = 1.3; ctx.shadowBlur = 6;
-    drawContour(FACE_L_EYE, true);
-    drawContour(FACE_R_EYE, true);
+function drawFaceEyes(ctx, lm, W, H, color) {
+    drawContourOnMain(ctx, lm, FACE_L_EYE,  W, H, color, 1.3, 0.9, false);
+    drawContourOnMain(ctx, lm, FACE_R_EYE,  W, H, color, 1.3, 0.9, false);
+    drawContourOnMain(ctx, lm, FACE_L_BROW, W, H, color, 1.0, 0.6, false);
+    drawContourOnMain(ctx, lm, FACE_R_BROW, W, H, color, 1.0, 0.6, false);
+}
 
-    // Brows
-    ctx.globalAlpha = 0.6; ctx.lineWidth = 1.0; ctx.shadowBlur = 4;
-    drawContour(FACE_L_BROW);
-    drawContour(FACE_R_BROW);
+function drawFaceMouth(ctx, lm, W, H, color) {
+    drawContourOnMain(ctx, lm, FACE_MOUTH_OUTER_TOP,    W, H, color, 1.4, 0.9, false);
+    drawContourOnMain(ctx, lm, FACE_MOUTH_OUTER_BOTTOM, W, H, color, 1.4, 0.9, false);
+    drawContourOnMain(ctx, lm, FACE_MOUTH_INNER_TOP,    W, H, color, 1.0, 0.6, false);
+    drawContourOnMain(ctx, lm, FACE_MOUTH_INNER_BOTTOM, W, H, color, 1.0, 0.6, false);
+}
 
-    // Mouth
-    ctx.globalAlpha = 0.9; ctx.lineWidth = 1.4; ctx.shadowBlur = 6;
-    drawContour(FACE_MOUTH_OUTER, true);
-
-    // Nose
-    ctx.globalAlpha = 0.5; ctx.lineWidth = 0.8; ctx.shadowBlur = 3;
-    drawContour(FACE_NOSE);
-
-    // Iris
+function drawFaceIris(ctx, lm, W, H) {
     [[469,470,471,472],[474,475,476,477]].forEach(ring => {
-        if (!lm[ring[0]]) return;
-        ctx.globalAlpha = 0.8; ctx.strokeStyle = '#00ffff'; ctx.lineWidth = 1.5; ctx.shadowBlur = 8; ctx.shadowColor = '#00ffff';
+        ctx.save();
+        ctx.globalAlpha = 0.8;
+        ctx.strokeStyle = '#00ffff';
+        ctx.lineWidth = 1.5;
+        ctx.shadowColor = '#00ffff'; ctx.shadowBlur = 8;
         ctx.beginPath();
-        ring.forEach((idx, i) => {
-            const p = lm[idx]; if (!p) return;
-            i===0 ? ctx.moveTo(px(p.x), py(p.y)) : ctx.lineTo(px(p.x), py(p.y));
+        ring.forEach((idx,i) => {
+            const p=lm[idx]; if(!p) return;
+            i===0 ? ctx.moveTo(flx(p.x,W),fly(p.y,H)) : ctx.lineTo(flx(p.x,W),fly(p.y,H));
         });
         ctx.closePath(); ctx.stroke();
+        ctx.restore();
     });
+}
 
-    // Key dots
-    ctx.fillStyle = faceColor; ctx.shadowColor = faceColor; ctx.shadowBlur = 8; ctx.globalAlpha = 0.9;
-    [1,4,6,10,152,234,454,33,263,61,291,168,0].forEach(idx => {
-        const p = lm[idx]; if (!p) return;
-        ctx.beginPath();
-        ctx.arc(px(p.x), py(p.y), 2*dpr, 0, Math.PI*2);
-        ctx.fill();
+function drawFaceKeyDots(ctx, lm, W, H, color) {
+    ctx.save();
+    ctx.fillStyle = color;
+    ctx.shadowColor = color; ctx.shadowBlur = 6; ctx.globalAlpha = 0.9;
+    FACE_KEY_DOTS.forEach(idx => {
+        const p=lm[idx]; if(!p) return;
+        ctx.beginPath(); ctx.arc(flx(p.x,W), fly(p.y,H), 2, 0, Math.PI*2); ctx.fill();
     });
-
-    // Scanning line across face
-    const topLm = lm[10], botLm = lm[152];
-    if (topLm && botLm) {
-        const faceTop = py(topLm.y);
-        const faceBot = py(botLm.y);
-        const faceH = faceBot - faceTop;
-        const scanY = faceTop + ((Date.now() / 1200) % 1) * faceH;
-        const faceLeft = px(lm[234].x), faceRight = px(lm[454].x);
-        const grd = ctx.createLinearGradient(faceLeft, scanY, faceRight, scanY);
-        grd.addColorStop(0, 'rgba(57,255,20,0)');
-        grd.addColorStop(0.5, 'rgba(57,255,20,0.5)');
-        grd.addColorStop(1, 'rgba(57,255,20,0)');
-        ctx.globalAlpha = 0.6; ctx.fillStyle = grd;
-        ctx.fillRect(faceLeft, scanY, faceRight-faceLeft, 2*dpr);
-    }
-
     ctx.restore();
 }
 
+function drawFaceScanLine(ctx, lm, W, H) {
+    const topLm=lm[10], botLm=lm[152];
+    if(!topLm||!botLm) return;
+    const faceTop=fly(topLm.y,H), faceBot=fly(botLm.y,H);
+    const faceH=faceBot-faceTop;
+    const scanY=faceTop+((Date.now()/1200)%1)*faceH;
+    const faceLeft=flx(lm[234].x,W), faceRight=flx(lm[454].x,W);
+    const grd=ctx.createLinearGradient(faceLeft,scanY,faceRight,scanY);
+    grd.addColorStop(0,'rgba(57,255,20,0)');
+    grd.addColorStop(0.5,'rgba(57,255,20,0.5)');
+    grd.addColorStop(1,'rgba(57,255,20,0)');
+    ctx.save();
+    ctx.globalAlpha=0.6; ctx.fillStyle=grd;
+    ctx.fillRect(faceLeft, scanY, faceRight-faceLeft, 2);
+    ctx.restore();
+}
+
+/* ── Face info typewriter ── */
+function updateBioFaceInfo(lm, W, H, now) {
+    const topPt = lm[10];
+    const foreX = flx(topPt.x, W) / devicePixelRatio;
+    const foreY = fly(topPt.y, H) / devicePixelRatio - 22;
+    const el = document.getElementById('bioFaceInfo');
+    el.style.left = foreX+'px';
+    el.style.top  = Math.max(foreY,42)+'px';
+    el.classList.add('visible');
+
+    if (!bioTypeDone && now > bioTypeTimer) {
+        bioTypeTimer = now + 45;
+        if (bioTypeIdx < bioTypeTargets.length) {
+            if (bioTypeCharIdx < bioTypeTargets[bioTypeIdx].length) {
+                bioTypeLines[bioTypeIdx] += bioTypeTargets[bioTypeIdx][bioTypeCharIdx++];
+            } else {
+                bioTypeIdx++; bioTypeCharIdx=0;
+                if (bioTypeIdx >= bioTypeTargets.length) bioTypeDone=true;
+            }
+        }
+    }
+    document.getElementById('bfi-0').textContent = bioTypeLines[0]+(bioTypeIdx===0?'_':'');
+    document.getElementById('bfi-1').textContent = bioTypeLines[1]+(bioTypeIdx===1?'_':'');
+    document.getElementById('bfi-2').textContent = bioTypeLines[2]+(bioTypeIdx===2?'_':'');
+}
+
+function clearBioFaceInfo() {
+    document.getElementById('bioFaceInfo').classList.remove('visible');
+    bioTypeDone=false; bioTypeIdx=0; bioTypeCharIdx=0;
+    bioTypeLines=['','','']; bioTypeTimer=0;
+}
+
+/* ── Pose skeleton drawing ── */
+function drawPoseSkeleton(ctx, lm, W, H, dpr) {
+    function segColor(a,b) {
+        const isHead = HEAD_LANDMARKS.has(a)||HEAD_LANDMARKS.has(b);
+        const isArm  = [11,12,13,14].some(x=>x===a||x===b);
+        const isLeg  = [23,24,25,26,27,28,29,30,31,32].some(x=>x===a||x===b);
+        if (isHead) return {r:200,g:80,b:255};
+        if (isArm)  return {r:160,g:255,b:50};
+        if (isLeg)  return {r:0,g:180,b:255};
+        return {r:57,g:255,b:20};
+    }
+    ctx.save();
+    POSE_CONNECTIONS.forEach(([a,b]) => {
+        const pa=lm[a], pb=lm[b]; if(!pa||!pb) return;
+        if(pa.visibility<0.3||pb.visibility<0.3) return;
+        const x1=pa.x*W,y1=pa.y*H,x2=pb.x*W,y2=pb.y*H;
+        const conf=(pa.visibility+pb.visibility)/2;
+        const alpha=0.45+conf*0.55;
+        const isHead=HEAD_LANDMARKS.has(a)||HEAD_LANDMARKS.has(b);
+        const c=segColor(a,b);
+        const col=`rgba(${c.r},${c.g},${c.b},${isHead?alpha*0.28:alpha})`;
+        ctx.beginPath();
+        ctx.strokeStyle=col; ctx.lineWidth=isHead?0.8*dpr:2.5*dpr;
+        ctx.shadowBlur=isHead?4*dpr:14*dpr; ctx.shadowColor=col;
+        ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+        if(!isHead&&conf>0.6){
+            ctx.beginPath();
+            ctx.strokeStyle=`rgba(${c.r},${c.g},${c.b},${alpha*0.2})`;
+            ctx.lineWidth=6*dpr; ctx.shadowBlur=20*dpr;
+            ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+        }
+    });
+    ctx.restore();
+}
+
+function drawPoseJoints(ctx, lm, W, H, dpr) {
+    function segColor(i){
+        if(HEAD_LANDMARKS.has(i)) return {r:200,g:80,b:255};
+        if([11,12,13,14].includes(i)) return {r:160,g:255,b:50};
+        if([23,24,25,26,27,28,29,30,31,32].includes(i)) return {r:0,g:180,b:255};
+        return {r:57,g:255,b:20};
+    }
+    ctx.save();
+    lm.forEach((p,i) => {
+        if(HEAD_LANDMARKS.has(i)||HAND_LANDMARKS.has(i)) return;
+        if(p.visibility<0.38) return;
+        const x=p.x*W, y=p.y*H;
+        const alpha=0.55+p.visibility*0.45;
+        const c=segColor(i);
+        const col=`rgba(${c.r},${c.g},${c.b},${alpha})`;
+        const isKey=[11,12,23,24,13,14,25,26,27,28].includes(i);
+        const r=isKey?5*dpr:3.5*dpr;
+        ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2);
+        ctx.fillStyle=col; ctx.shadowBlur=16*dpr; ctx.shadowColor=col; ctx.fill();
+        if(isKey){
+            ctx.beginPath(); ctx.arc(x,y,r*2.2,0,Math.PI*2);
+            ctx.strokeStyle=`rgba(${c.r},${c.g},${c.b},${alpha*0.35})`;
+            ctx.lineWidth=dpr; ctx.shadowBlur=8*dpr; ctx.stroke();
+        }
+        if([11,12,23,24].includes(i)){
+            const labels={11:'L-SH',12:'R-SH',23:'L-HIP',24:'R-HIP'};
+            ctx.font=`${7*dpr}px 'Share Tech Mono'`;
+            ctx.fillStyle=`rgba(${c.r},${c.g},${c.b},0.65)`;
+            ctx.shadowBlur=3*dpr;
+            ctx.fillText(labels[i],x+8*dpr,y-6*dpr);
+        }
+    });
+    ctx.restore();
+}
+
+function drawHandDetails(ctx, lm, W, H, dpr) {
+    function drawHand(wristIdx, pinkyIdx, indexIdx, thumbIdx) {
+        const w=lm[wristIdx],pk=lm[pinkyIdx],ix=lm[indexIdx],th=lm[thumbIdx];
+        if(!w||!pk||!ix||!th||w.visibility<0.35) return;
+        const wx=w.x*W, wy=w.y*H;
+        const pkx=pk.x*W, pky=pk.y*H;
+        const ixx=ix.x*W, ixy=ix.y*H;
+        const thx=th.x*W, thy=th.y*H;
+        const alpha=0.6+w.visibility*0.4;
+        const pulseFill=0.08+Math.sin(Date.now()/350)*0.04;
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(wx,wy); ctx.lineTo(pkx,pky); ctx.lineTo(ixx,ixy); ctx.lineTo(thx,thy);
+        ctx.closePath();
+        ctx.fillStyle=`rgba(0,220,255,${pulseFill})`; ctx.fill();
+        ctx.strokeStyle=`rgba(0,220,255,${alpha*0.75})`; ctx.lineWidth=1.5*dpr;
+        ctx.shadowBlur=12*dpr; ctx.shadowColor='rgba(0,220,255,0.9)'; ctx.stroke();
+        [[pkx,pky],[ixx,ixy],[thx,thy]].forEach(([fx,fy])=>{
+            ctx.beginPath(); ctx.strokeStyle=`rgba(0,220,255,${alpha*0.9})`;
+            ctx.lineWidth=2*dpr; ctx.shadowBlur=14*dpr;
+            ctx.moveTo(wx,wy); ctx.lineTo(fx,fy); ctx.stroke();
+        });
+        ctx.beginPath(); ctx.arc(wx,wy,7*dpr,0,Math.PI*2);
+        ctx.fillStyle=`rgba(0,220,255,${alpha})`; ctx.shadowBlur=18*dpr; ctx.shadowColor='rgba(0,220,255,1)'; ctx.fill();
+        ctx.beginPath(); ctx.arc(wx,wy,13*dpr,0,Math.PI*2);
+        ctx.strokeStyle=`rgba(0,220,255,${alpha*0.4})`; ctx.lineWidth=dpr; ctx.shadowBlur=8*dpr; ctx.stroke();
+        [[pkx,pky],[ixx,ixy],[thx,thy]].forEach(([fx,fy])=>{
+            ctx.beginPath(); ctx.arc(fx,fy,4*dpr,0,Math.PI*2);
+            ctx.fillStyle=`rgba(120,240,255,${alpha*0.9})`; ctx.shadowBlur=10*dpr; ctx.shadowColor='rgba(0,220,255,0.8)'; ctx.fill();
+        });
+        ctx.font=`bold ${9*dpr}px 'Share Tech Mono'`;
+        ctx.fillStyle=`rgba(0,220,255,${alpha*0.85})`; ctx.shadowBlur=5*dpr;
+        ctx.fillText(wristIdx===15?'L-HAND':'R-HAND', wx+16*dpr, wy-8*dpr);
+        ctx.restore();
+    }
+    drawHand(15,17,19,21);
+    drawHand(16,18,20,22);
+}
+
+function drawPoseBBox(ctx, lm, W, H, dpr) {
+    const visLm=lm.filter(p=>p.visibility>0.4);
+    if(visLm.length<4) return;
+    const xs=visLm.map(p=>p.x*W), ys=visLm.map(p=>p.y*H);
+    const bx=Math.min(...xs)-20*dpr, by=Math.min(...ys)-20*dpr;
+    const bw=Math.max(...xs)-bx+20*dpr, bh=Math.max(...ys)-by+20*dpr;
+    const pulse=0.6+Math.sin(Date.now()/400)*0.4;
+    const avgConf=lm.reduce((s,p)=>s+(p.visibility||0),0)/lm.length;
+    ctx.save();
+    ctx.strokeStyle=`rgba(57,255,20,${0.3*pulse})`; ctx.lineWidth=dpr;
+    ctx.setLineDash([6*dpr,8*dpr]); ctx.strokeRect(bx,by,bw,bh); ctx.setLineDash([]);
+    const cl=Math.min(bw,bh)*0.12;
+    ctx.strokeStyle=`rgba(57,255,20,${0.7+0.3*pulse})`; ctx.lineWidth=2*dpr;
+    ctx.shadowBlur=10; ctx.shadowColor='rgba(57,255,20,0.8)';
+    ctx.beginPath();
+    ctx.moveTo(bx,by+cl); ctx.lineTo(bx,by); ctx.lineTo(bx+cl,by);
+    ctx.moveTo(bx+bw-cl,by); ctx.lineTo(bx+bw,by); ctx.lineTo(bx+bw,by+cl);
+    ctx.moveTo(bx+bw,by+bh-cl); ctx.lineTo(bx+bw,by+bh); ctx.lineTo(bx+bw-cl,by+bh);
+    ctx.moveTo(bx+cl,by+bh); ctx.lineTo(bx,by+bh); ctx.lineTo(bx,by+bh-cl);
+    ctx.stroke();
+    ctx.shadowBlur=6; ctx.fillStyle='rgba(57,255,20,0.85)';
+    ctx.font=`bold ${10*dpr}px 'Share Tech Mono'`;
+    ctx.fillText(`BODY | CONF:${Math.round(avgConf*100)}%`, bx, by-6*dpr);
+    ctx.restore();
+}
+
+function drawBodySilhouette(ctx, lm, W, H, dpr) {
+    const ORDER=[0,8,6,12,14,16,16,24,26,28,32,32,31,31,27,25,23,23,15,13,11,11,5,7,0];
+    const pts=[]; let prevIdx=-1;
+    ORDER.forEach(i=>{
+        if(i===prevIdx) return; prevIdx=i;
+        const p=lm[i]; if(!p||p.visibility<0.25) return;
+        pts.push({x:p.x*W,y:p.y*H});
+    });
+    if(pts.length<4) return;
+    const cx=pts.reduce((s,p)=>s+p.x,0)/pts.length;
+    const cy=pts.reduce((s,p)=>s+p.y,0)/pts.length;
+    const PAD=28*dpr;
+    const expanded=pts.map(p=>{
+        const dx=p.x-cx,dy=p.y-cy,dist=Math.sqrt(dx*dx+dy*dy)||1;
+        return {x:p.x+(dx/dist)*PAD,y:p.y+(dy/dist)*PAD};
+    });
+    ctx.save();
+    ctx.beginPath(); ctx.moveTo(expanded[0].x,expanded[0].y);
+    for(let i=1;i<expanded.length-1;i++){
+        const mx=(expanded[i].x+expanded[i+1].x)/2, my=(expanded[i].y+expanded[i+1].y)/2;
+        ctx.quadraticCurveTo(expanded[i].x,expanded[i].y,mx,my);
+    }
+    ctx.quadraticCurveTo(expanded[expanded.length-1].x,expanded[expanded.length-1].y,expanded[0].x,expanded[0].y);
+    ctx.closePath();
+    const grad=ctx.createRadialGradient(cx,cy,0,cx,cy,Math.max(W,H)*0.4);
+    grad.addColorStop(0,'rgba(30,100,255,0.22)');
+    grad.addColorStop(0.5,'rgba(0,140,255,0.18)');
+    grad.addColorStop(1,'rgba(0,80,200,0.08)');
+    ctx.fillStyle=grad; ctx.fill();
+    ctx.strokeStyle='rgba(0,160,255,0.55)'; ctx.lineWidth=1.5*dpr;
+    ctx.shadowBlur=18*dpr; ctx.shadowColor='rgba(0,120,255,0.7)'; ctx.stroke();
+    ctx.restore();
+}
 
 function drawBioGrid(ctx, W, H, dpr) {
-    const gs = 55 * dpr;
-    ctx.strokeStyle = 'rgba(0,50,0,0.25)';
-    ctx.lineWidth = 0.5;
-    for(let x=0; x<W; x+=gs){ ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
-    for(let y=0; y<H; y+=gs){ ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+    const gs=55*dpr;
+    ctx.strokeStyle='rgba(0,50,0,0.25)'; ctx.lineWidth=0.5;
+    for(let x=0;x<W;x+=gs){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
+    for(let y=0;y<H;y+=gs){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
 }
 
 function drawBioCorners(ctx, W, H, dpr) {
-    const s = 32 * dpr;
-    ctx.strokeStyle = 'rgba(57,255,20,0.35)';
-    ctx.lineWidth = 1.5 * dpr;
-    ctx.shadowBlur = 10; ctx.shadowColor = 'rgba(57,255,20,0.6)';
-    [[0,0,1,1],[W,0,-1,1],[W,H,-1,-1],[0,H,1,-1]].forEach(([x,y,sx,sy]) => {
+    const s=32*dpr;
+    ctx.strokeStyle='rgba(57,255,20,0.35)'; ctx.lineWidth=1.5*dpr;
+    ctx.shadowBlur=10; ctx.shadowColor='rgba(57,255,20,0.6)';
+    [[0,0,1,1],[W,0,-1,1],[W,H,-1,-1],[0,H,1,-1]].forEach(([x,y,sx,sy])=>{
         ctx.beginPath();
-        ctx.moveTo(x+sx*s, y); ctx.lineTo(x, y); ctx.lineTo(x, y+sy*s);
+        ctx.moveTo(x+sx*s,y); ctx.lineTo(x,y); ctx.lineTo(x,y+sy*s);
         ctx.stroke();
     });
-    ctx.shadowBlur = 0;
+    ctx.shadowBlur=0;
 }
 
 function addLogBio(msg) {
-    const t = document.getElementById('bioTerminal'); if (!t) return;
-    const e = document.createElement('div'); e.className='log-entry-bio';
+    const t=document.getElementById('bioTerminal'); if(!t) return;
+    const e=document.createElement('div'); e.className='log-entry-bio';
     e.innerHTML=`› ${msg}`; t.appendChild(e);
-    if (t.childNodes.length > 6) t.removeChild(t.firstChild);
-    t.scrollTop = t.scrollHeight;
+    if(t.childNodes.length>6) t.removeChild(t.firstChild);
+    t.scrollTop=t.scrollHeight;
 }
 
 /* ══ MODE SWITCH ══ */
 document.getElementById('modeToggle').onclick = () => {
     if(isTransitioning) return;
-    const idx = MODES.indexOf(currentMode);
-    const next = MODES[(idx+1) % MODES.length];
-    setMode(next, true);
+    const idx=MODES.indexOf(currentMode);
+    setMode(MODES[(idx+1)%MODES.length], true);
 };
 
 function buildGlitchBands(toMode) {
-    const gb = document.getElementById('glitchBands');
-    gb.innerHTML = '';
-    const count = 8 + Math.floor(Math.random()*6);
-    for(let i=0; i<count; i++) {
-        const band = document.createElement('div');
-        band.className = 'gb-band';
-        const h = 2 + Math.random()*18;
-        const top = Math.random()*100;
-        const tx = (Math.random()-0.5)*60;
-        band.style.cssText = `top:${top}%;height:${h}px;transform:translateX(${tx}px);`;
+    const gb=document.getElementById('glitchBands'); gb.innerHTML='';
+    const count=8+Math.floor(Math.random()*6);
+    for(let i=0;i<count;i++){
+        const band=document.createElement('div'); band.className='gb-band';
+        const h=2+Math.random()*18, top=Math.random()*100, tx=(Math.random()-0.5)*60;
+        band.style.cssText=`top:${top}%;height:${h}px;transform:translateX(${tx}px);`;
         gb.appendChild(band);
     }
 }
 
 function runGlitchTransition(toMode) {
-    const gc = document.createElement('canvas');
+    const gc=document.createElement('canvas');
     gc.width=innerWidth; gc.height=innerHeight;
     gc.style.cssText='position:absolute;inset:0;z-index:203;pointer-events:none;';
     document.getElementById('container').appendChild(gc);
-    const gx = gc.getContext('2d');
-    const colors = { wc:[0,255,65], tgt:[255,32,32], bio:[57,255,20] };
-    const col = colors[toMode] || [255,255,255];
+    const gx=gc.getContext('2d');
+    const colors={wc:[0,255,65],tgt:[255,32,32],bio:[57,255,20]};
+    const col=colors[toMode]||[255,255,255];
     let frame=0; const totalFrames=22;
-    function glitchFrame() {
+    function glitchFrame(){
         gx.clearRect(0,0,gc.width,gc.height);
-        const intensity = frame < 8 ? frame/8 : (1-(frame-8)/14);
-        const slices = Math.round(3 + intensity*12);
-        for(let i=0; i<slices; i++) {
-            const y=Math.random()*gc.height, h=1+Math.random()*20;
-            const tx=(Math.random()-0.5)*intensity*80, a=intensity*(0.2+Math.random()*0.4);
-            gx.fillStyle=`rgba(${col[0]},${col[1]},${col[2]},${a})`;
-            gx.fillRect(tx,y,gc.width,h);
+        const intensity=frame<8?frame/8:(1-(frame-8)/14);
+        const slices=Math.round(3+intensity*12);
+        for(let i=0;i<slices;i++){
+            const y=Math.random()*gc.height,h=1+Math.random()*20;
+            const tx=(Math.random()-0.5)*intensity*80,a=intensity*(0.2+Math.random()*0.4);
+            gx.fillStyle=`rgba(${col[0]},${col[1]},${col[2]},${a})`; gx.fillRect(tx,y,gc.width,h);
             gx.fillStyle=`rgba(255,0,100,${a*0.5})`; gx.fillRect(tx-6,y,gc.width,h*0.4);
             gx.fillStyle=`rgba(0,255,220,${a*0.5})`; gx.fillRect(tx+6,y,gc.width,h*0.4);
         }
-        if(intensity>0.4) {
-            for(let i=0;i<Math.round(intensity*20);i++) {
+        if(intensity>0.4){
+            for(let i=0;i<Math.round(intensity*20);i++){
                 gx.fillStyle=`rgba(${col[0]},${col[1]},${col[2]},${intensity*0.3})`;
                 gx.fillRect(Math.random()*gc.width,Math.random()*gc.height,10+Math.random()*60,4+Math.random()*20);
             }
         }
         frame++;
-        if(frame < totalFrames) requestAnimationFrame(glitchFrame);
+        if(frame<totalFrames) requestAnimationFrame(glitchFrame);
         else gc.remove();
     }
     glitchFrame();
 }
 
 function triggerModeTransition(toMode, cb) {
-    isTransitioning = true;
+    isTransitioning=true;
     const overlay=document.getElementById('modeTransition'), scanWipe=document.getElementById('modeScanWipe');
     const gb=document.getElementById('glitchBands'), rgb=document.getElementById('rgbSplit');
     const cls='to-'+toMode;
     overlay.className='active '+cls; scanWipe.className='active '+cls;
     gb.className='active '+cls; buildGlitchBands(toMode);
-    rgb.style.background=`rgba(${toMode==='wc'?'0,255,65':toMode==='tgt'?'255,32,32':'57,255,20'},0.08)`;
     rgb.className='active';
     runGlitchTransition(toMode);
     setTimeout(()=>{ overlay.className=''; scanWipe.className=''; gb.className=''; rgb.className=''; isTransitioning=false; },700);
@@ -1130,33 +1254,32 @@ function triggerModeTransition(toMode, cb) {
 
 function setMode(mode, animated) {
     if(animated) { triggerModeTransition(mode, ()=>applyMode(mode)); }
-    else          { applyMode(mode); }
+    else { applyMode(mode); }
 }
 
 function applyMode(mode) {
-    currentMode = mode;
+    currentMode=mode;
     const wcUI=document.getElementById('wcUI'), tgtUI=document.getElementById('tgtUI'), bioUI=document.getElementById('bioUI');
     const toggle=document.getElementById('modeToggle'), btnTxt=document.getElementById('modeBtnText');
     const wglC=document.getElementById('webglCanvas');
     const sc1=document.getElementById('scanlines'), sc2=document.getElementById('scanlinesTgt'), sc3=document.getElementById('scanlinesBio');
     const vig=document.getElementById('vignette'), vigB=document.getElementById('vignetteBio');
 
-    // Hide all
     wcUI.style.display='none'; tgtUI.style.display='none'; bioUI.style.display='none';
     wglC.style.display='none'; hudCanvas.style.display='none';
     tapCanvas.style.display='none'; tgtCanvas.style.display='none';
-    bioCanvas.style.display='none'; bioFaceCanvas.style.display='none';
+    bioMain.style.display='none';
     sc1.style.display='none'; sc2.style.display='none'; sc3.style.display='none';
     vig.style.display='none'; vigB.style.display='none';
     video.className='';
     tgtRunning=false; bioRunning=false;
+    stopMPLoop();
 
-    // Dots
     document.getElementById('dot-wc').className  ='md-dot'+(mode==='wc'?' active-wc':'');
     document.getElementById('dot-tgt').className ='md-dot'+(mode==='tgt'?' active-tgt':'');
     document.getElementById('dot-bio').className ='md-dot'+(mode==='bio'?' active-bio':'');
 
-    btnTxt.textContent = MODE_LABELS[mode];
+    btnTxt.textContent=MODE_LABELS[mode];
 
     if(mode==='wc') {
         wcUI.style.display='block';
@@ -1174,25 +1297,19 @@ function applyMode(mode) {
     }
     else if(mode==='bio') {
         bioUI.style.display='block';
-        bioCanvas.style.display='block'; bioFaceCanvas.style.display='block';
+        bioMain.style.display='block';
         sc3.style.display='block'; vigB.style.display='block';
         video.className='mode-bio'; toggle.className='mode-bio';
-        bioCanvas.width=innerWidth*devicePixelRatio; bioCanvas.height=innerHeight*devicePixelRatio;
-        bioFaceCanvas.width=innerWidth*devicePixelRatio; bioFaceCanvas.height=innerHeight*devicePixelRatio;
+        bioMain.width=innerWidth*devicePixelRatio; bioMain.height=innerHeight*devicePixelRatio;
         bioRunning=true;
         addLogBio("◈ BIOMETRIC MODE ONLINE");
         addLogBio("⬡ LOADING NEURAL MESH...");
-
-        if (!mpInitialized) {
-            initMediaPipe();
-        } else {
-            if (!mpCamera) startMPCamera();
-            addLogBio("◈ POSE + FACE MESH ACTIVE");
-        }
+        if (!mpInitialized) { initMediaPipe(); }
+        else { startMPLoop(); addLogBio("◈ POSE + FACE MESH ACTIVE"); }
     }
 }
 
-/* ══ DETECT LOOP (COCO-SSD for WC/TGT) ══ */
+/* ══ DETECT LOOP ══ */
 async function detectLoop() {
     if(model&&video.readyState>=3&&video.videoWidth>0) {
         try { allPredictions=await model.detect(video); } catch(e) {}
@@ -1528,12 +1645,20 @@ function startBioTopClock() {
     setInterval(()=>{ const el=document.getElementById('bioTopTime'); if(el) el.textContent=tsTGT(); },1000);
 }
 
+/* Periodic glitch effect for face info */
+setInterval(()=>{
+    if(bioFaceVisible) {
+        const el=document.getElementById('bioFaceInfo');
+        el.classList.add('glitch');
+        setTimeout(()=>el.classList.remove('glitch'), 500);
+    }
+}, 3000+Math.random()*4000);
+
 window.addEventListener('resize',()=>{
     hudCanvas.width=innerWidth; hudCanvas.height=innerHeight;
     tapCanvas.width=innerWidth; tapCanvas.height=innerHeight;
     tgtCanvas.width=innerWidth*devicePixelRatio; tgtCanvas.height=innerHeight*devicePixelRatio;
-    bioCanvas.width=innerWidth*devicePixelRatio; bioCanvas.height=innerHeight*devicePixelRatio;
-    bioFaceCanvas.width=innerWidth*devicePixelRatio; bioFaceCanvas.height=innerHeight*devicePixelRatio;
+    bioMain.width=innerWidth*devicePixelRatio; bioMain.height=innerHeight*devicePixelRatio;
 });
 </script>
 
