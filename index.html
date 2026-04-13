@@ -28,7 +28,6 @@
         #hudCanvas    { position:absolute; top:0; left:0; width:100%; height:100%; z-index:5; pointer-events:none; display:none; }
         #tapCanvas    { position:absolute; top:0; left:0; width:100%; height:100%; z-index:6; cursor:pointer; display:none; }
         #tgtCanvas    { position:absolute; top:0; left:0; width:100%; height:100%; z-index:7; pointer-events:none; display:none; }
-        /* BIO: unified canvas layer */
         #bioMainCanvas { position:absolute; top:0; left:0; width:100%; height:100%; z-index:7; pointer-events:none; display:none; }
 
 ```
@@ -40,7 +39,6 @@
     #vignette     { position:absolute; inset:0; pointer-events:none; z-index:4; display:none; background:radial-gradient(ellipse 80% 80% at 50% 50%,transparent 40%,rgba(0,0,0,0.8) 100%); }
     #vignetteBio  { position:absolute; inset:0; pointer-events:none; z-index:4; display:none; background:radial-gradient(ellipse 85% 85% at 50% 50%,transparent 30%,rgba(0,5,0,0.72) 100%); }
 
-    /* MODE TRANSITION */
     #modeTransition { position:absolute; inset:0; z-index:200; pointer-events:none; opacity:0; }
     #modeTransition.active { animation:modeFlash 0.7s ease forwards; }
     @keyframes modeFlash { 0%{opacity:0} 12%{opacity:1} 38%{opacity:0.8} 55%{opacity:0.3} 100%{opacity:0} }
@@ -70,7 +68,6 @@
     #modeScanWipe.to-tgt { color:var(--red); }
     #modeScanWipe.to-bio { color:var(--bio); }
 
-    /* MODE BUTTON */
     #modeToggle { position:absolute; top:12px; right:12px; z-index:50; display:none; background:rgba(0,0,0,0.75); border:1px solid rgba(255,255,255,0.2); color:rgba(255,255,255,0.7); font-family:var(--sans); font-size:9px; font-weight:700; letter-spacing:3px; text-transform:uppercase; padding:0; cursor:pointer; backdrop-filter:blur(6px); transition:all 0.3s; overflow:hidden; width:130px; height:34px; }
     .mode-btn-inner { display:flex; align-items:center; justify-content:center; gap:7px; width:100%; height:100%; padding:0 12px; transition:all 0.3s; }
     .mode-dot { width:6px; height:6px; border-radius:50%; flex-shrink:0; transition:all 0.3s; }
@@ -88,7 +85,6 @@
     .md-dot.active-tgt { background:var(--red);   box-shadow:0 0 6px var(--red); }
     .md-dot.active-bio { background:var(--bio);   box-shadow:0 0 8px var(--bio); }
 
-    /* START BTN */
     #startBtn { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); background:none; border:none; color:#fff; font-family:var(--sans); font-size:11px; font-weight:700; letter-spacing:5px; text-transform:uppercase; cursor:pointer; z-index:100; outline:none; padding:0; }
     #startBtn .btn-inner { display:flex; flex-direction:column; align-items:center; gap:20px; }
     #startBtn .btn-ring  { width:80px; height:80px; position:relative; display:flex; align-items:center; justify-content:center; }
@@ -210,7 +206,7 @@
     }
     @keyframes fadeInBio { from{opacity:0;transform:translateX(-8px)} to{opacity:0.9} }
 
-    /* Bio metrics panel (right side) */
+    /* Bio metrics panel */
     #bioMetrics {
         position:absolute; right:20px; top:50%; transform:translateY(-50%);
         z-index:15; pointer-events:none;
@@ -224,7 +220,7 @@
     .bm-fill { position:absolute; top:0; left:0; height:100%; background:var(--bio); box-shadow:0 0 8px var(--bio); transition:width 0.4s ease; }
     .bm-value { font-size:9px; letter-spacing:2px; color:var(--bio); font-family:var(--mono); }
 
-    /* Bio face info label above forehead */
+    /* Bio face info above forehead */
     #bioFaceInfo {
         position:absolute; z-index:16; pointer-events:none;
         font-size:9px; letter-spacing:1.5px; line-height:1.8;
@@ -236,6 +232,13 @@
     }
     #bioFaceInfo.visible { opacity:1; }
     #bioFaceInfo span { display:block; }
+    @keyframes glitchTextBio {
+        0%  { clip-path:inset(0 0 90% 0); transform:translateX(-50%) translate(-2px,0); }
+        15% { clip-path:inset(30% 0 50% 0); transform:translateX(-50%) translate(2px,0); }
+        30% { clip-path:inset(70% 0 10% 0); transform:translateX(-50%) translate(-1px,0); }
+        50%,100% { clip-path:none; transform:translateX(-50%); }
+    }
+    #bioFaceInfo.glitch { animation:glitchTextBio 0.35s steps(1); }
 
     /* Reticle at face center */
     #bioReticle {
@@ -244,6 +247,16 @@
         z-index:16;
     }
     #bioReticle.visible { opacity:1; }
+
+    /* Target label */
+    #bioTargetLabel {
+        position:absolute; z-index:16; pointer-events:none;
+        font-family:var(--orb); font-size:9px; letter-spacing:4px; color:var(--bio);
+        opacity:0; transition:opacity 0.3s; white-space:nowrap;
+        text-shadow:0 0 10px var(--bio);
+        transform:translateX(-50%);
+    }
+    #bioTargetLabel.visible { opacity:1; }
 
     /* Target acquired flash */
     #bioAcqFlash { position:absolute; inset:0; pointer-events:none; z-index:30; opacity:0; }
@@ -257,15 +270,6 @@
         font-family:var(--mono);
     }
 
-    /* Audio visualizer in bio mode */
-    #bioVizWrap {
-        position:absolute; bottom:48px; right:20px;
-        z-index:15; pointer-events:none;
-        width:160px;
-    }
-    #bioVizLabel { font-size:7px; letter-spacing:3px; color:rgba(57,255,20,0.3); margin-bottom:4px; font-family:var(--mono); }
-    #bioAudioViz { width:160px; height:40px; display:block; }
-
     /* Skeleton badge */
     #skeletonBadge {
         position:absolute; top:44px; right:50%; transform:translateX(50%);
@@ -278,6 +282,32 @@
     #skeletonBadge.show { opacity:1; }
     #skeletonBadge::before { content:'◈ '; }
     #skeletonBadge::after  { content:' ◈'; }
+
+    /* Audio visualizer in bio mode */
+    #bioVizWrap {
+        position:absolute; bottom:48px; right:20px;
+        z-index:15; pointer-events:none;
+        width:160px;
+    }
+    #bioVizLabel { font-size:7px; letter-spacing:3px; color:rgba(57,255,20,0.3); margin-bottom:4px; font-family:var(--mono); }
+    #bioAudioViz { width:160px; height:40px; display:block; }
+
+    /* Live speech box */
+    #bioSpeechBox {
+        position:absolute; bottom:48px; left:50%; transform:translateX(-50%);
+        z-index:15; pointer-events:none;
+        font-family:var(--orb); font-size:clamp(11px,2vw,16px);
+        font-weight:700; letter-spacing:3px;
+        color:rgba(57,255,20,0.5); min-height:24px;
+        text-align:center; white-space:nowrap;
+        transition:color 0.3s;
+        text-shadow:0 0 12px rgba(57,255,20,0.3);
+        max-width:60vw; overflow:hidden; text-overflow:ellipsis;
+    }
+    #bioSpeechBox.speaking {
+        color:var(--bio);
+        text-shadow:0 0 18px var(--bio);
+    }
 
     /* MediaPipe loading overlay */
     #bioLoading {
@@ -311,7 +341,6 @@
 <canvas id="hudCanvas"></canvas>
 <canvas id="tapCanvas"></canvas>
 <canvas id="tgtCanvas"></canvas>
-<!-- Unified bio canvas: pose + face drawn together -->
 <canvas id="bioMainCanvas"></canvas>
 
 <div id="scanlines"></div>
@@ -396,7 +425,6 @@
     <div id="bioTargetStatus">> TARGET: SEEKING...</div>
     <div id="skeletonBadge">SKELETON TRACKING</div>
 
-    <!-- Reticle at face -->
     <div id="bioReticle">
         <svg viewBox="0 0 120 120" fill="none">
             <g stroke="#39ff14" stroke-width="1" opacity="0.8">
@@ -413,17 +441,15 @@
         </svg>
     </div>
 
-    <!-- Face info above forehead -->
+    <div id="bioTargetLabel">TARGET ACQUIRED</div>
     <div id="bioFaceInfo">
         <span id="bfi-0"></span>
         <span id="bfi-1"></span>
         <span id="bfi-2"></span>
     </div>
 
-    <!-- Acquired flash -->
     <div id="bioAcqFlash"></div>
 
-    <!-- Right metrics panel -->
     <div id="bioMetrics">
         <div class="bm-block">
             <div class="bm-label">SYMMETRY</div>
@@ -447,11 +473,12 @@
         </div>
     </div>
 
-    <!-- Audio visualizer -->
     <div id="bioVizWrap">
         <div id="bioVizLabel">AUDIO // dB</div>
         <canvas id="bioAudioViz"></canvas>
     </div>
+
+    <div id="bioSpeechBox">...</div>
 
     <div id="bioTerminal"></div>
 
@@ -554,7 +581,7 @@ let isTransitioning=false;
 
 /* ── MediaPipe State ── */
 let mpPose=null, mpFaceMesh=null;
-let mpLoopActive=false;
+let mpLoopActive=false, mpLoopTimer=null;
 let poseResults=null, faceResults=null;
 let mpInitialized=false;
 
@@ -566,9 +593,14 @@ let bioTypeLines=['','',''];
 let bioTypeTargets=['ID: --','CONF: --','SCAN: ACTIVE'];
 let bioTypeIdx=0, bioTypeCharIdx=0, bioTypeTimer=0, bioTypeDone=false;
 let bioFrameGlitch=false, bioGlitchEnd=0;
+let bioIsSpeaking=false;
 
-/* ── Audio analyser ── */
+/* ── Audio ── */
 let audioCtxNode=null, analyser=null, freqData=null;
+let bioAudioCtx=null, bioAnalyser=null, bioFreqData=null;
+
+/* ── Speech ── */
+let recognition=null, recRestarting=false, _SR=null;
 
 /* ── Pose landmark connections ── */
 const POSE_CONNECTIONS = [
@@ -593,48 +625,26 @@ const FACE_L_BROW      = [70,63,105,66,107,55,65,52,53,46];
 const FACE_R_BROW      = [300,293,334,296,336,285,295,282,283,276];
 const FACE_KEY_DOTS    = [1,4,6,10,152,234,454,33,263,61,291,168,0];
 
-/* ── Tesselation pairs (simplified subset for performance) ── */
-// We'll use MediaPipe's FACEMESH_TESSELATION if available, or a subset
-function getTesselation() {
-    if (typeof FACEMESH_TESSELATION !== 'undefined') return FACEMESH_TESSELATION;
-    // fallback: generate some cross-connections
-    return [];
-}
-
 /* ══ START ══ */
 document.getElementById('startBtn').onclick = async () => {
     const btn = document.getElementById('startBtn');
     btn.style.opacity='0'; btn.style.transition='opacity 0.5s';
     setTimeout(()=>btn.style.display='none',500);
     try {
-        // REAR CAMERA ONLY — always environment
+        // REAR CAMERA ONLY
         const stream = await navigator.mediaDevices.getUserMedia({
             video:{ facingMode:{ exact:'environment' }, width:{ideal:1280}, height:{ideal:720} },
             audio:false
-        }).catch(() => navigator.mediaDevices.getUserMedia({
+        }).catch(()=>navigator.mediaDevices.getUserMedia({
             video:{ facingMode:'environment', width:{ideal:1280}, height:{ideal:720} },
             audio:false
-        })).catch(() => navigator.mediaDevices.getUserMedia({
+        })).catch(()=>navigator.mediaDevices.getUserMedia({
             video:{ width:{ideal:1280}, height:{ideal:720} },
             audio:false
         }));
 
         video.srcObject = stream;
         await new Promise(resolve=>{ video.onloadedmetadata=()=>{ video.play(); resolve(); }; });
-
-        // Init audio for bio visualizer (no mic needed, just try)
-        try {
-            audioCtxNode = new (window.AudioContext || window.webkitAudioContext)();
-            analyser = audioCtxNode.createAnalyser();
-            analyser.fftSize = 256;
-            analyser.smoothingTimeConstant = 0.75;
-            // Try to get mic for audio vis
-            const micStream = await navigator.mediaDevices.getUserMedia({ audio:true }).catch(()=>null);
-            if (micStream) {
-                audioCtxNode.createMediaStreamSource(micStream).connect(analyser);
-                freqData = new Uint8Array(analyser.frequencyBinCount);
-            }
-        } catch(e) {}
 
         model = await cocoSsd.load();
         document.getElementById('modelStat').textContent='COCO-SSD';
@@ -662,17 +672,20 @@ function startBioAudioViz() {
         const H = canvas.offsetHeight || 40;
         if (canvas.width !== W) canvas.width = W;
         if (canvas.height !== H) canvas.height = H;
-
         ctx2.clearRect(0,0,W,H);
-        if (!analyser || !freqData) {
+
+        const src = bioAnalyser || analyser;
+        const data = bioFreqData || freqData;
+
+        if (!src || !data) {
             ctx2.strokeStyle='rgba(57,255,20,0.15)';
             ctx2.lineWidth=1;
             ctx2.beginPath(); ctx2.moveTo(0,H/2); ctx2.lineTo(W,H/2); ctx2.stroke();
         } else {
-            analyser.getByteFrequencyData(freqData);
-            const N=freqData.length, barW=W/N, gap=Math.max(barW*0.12,0.8);
+            src.getByteFrequencyData(data);
+            const N=data.length, barW=W/N, gap=Math.max(barW*0.12,0.8);
             for(let i=0;i<N;i++){
-                const v=freqData[i]/255;
+                const v=data[i]/255;
                 const barH=Math.max(v*H,1.5);
                 const a=0.3+v*0.7;
                 ctx2.fillStyle=`rgba(57,255,20,${a})`;
@@ -686,6 +699,64 @@ function startBioAudioViz() {
     loop();
 }
 
+/* ══ Speech Recognition ══ */
+function initBioSpeech() {
+    _SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!_SR) { addLogBio('SPEECH ENGINE: NOT SUPPORTED'); return; }
+    startBioRecognition('ru-RU');
+}
+
+function startBioRecognition(lang) {
+    if (recognition) {
+        recognition.onend = null; recognition.onerror = null;
+        try { recognition.abort(); } catch(_) {}
+        recognition = null;
+    }
+    recRestarting = false;
+    recognition = new _SR();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = lang;
+
+    const speechBox = document.getElementById('bioSpeechBox');
+
+    recognition.onresult = e => {
+        let interim = '';
+        for (let i=e.resultIndex; i<e.results.length; i++) {
+            const t=e.results[i][0].transcript.trim();
+            if (e.results[i].isFinal && t) addLogBio('SPEECH: '+t.toUpperCase());
+            else interim=t;
+        }
+        if (interim) {
+            bioIsSpeaking=true;
+            speechBox.textContent=interim.toUpperCase();
+            speechBox.classList.add('speaking');
+        }
+    };
+    recognition.onend = () => {
+        bioIsSpeaking=false;
+        if(speechBox){ speechBox.classList.remove('speaking'); speechBox.textContent='IDLE'; }
+        if (!recRestarting && bioRunning) {
+            recRestarting=true;
+            setTimeout(()=>{ recRestarting=false; if(bioRunning) startBioRecognition(lang); },400);
+        }
+    };
+    recognition.onerror = e => {
+        if(e.error==='not-allowed') addLogBio('MIC ACCESS DENIED');
+        else if(e.error!=='no-speech'&&e.error!=='aborted') console.warn('Speech:',e.error);
+    };
+    try { recognition.start(); addLogBio('◈ SPEECH ONLINE: '+lang.toUpperCase()); } catch(_) {}
+}
+
+function stopBioSpeech() {
+    if (recognition) {
+        recRestarting=true;
+        try { recognition.abort(); } catch(_) {}
+        recognition=null;
+    }
+    bioIsSpeaking=false;
+}
+
 /* ══ MediaPipe Init ══ */
 async function initMediaPipe() {
     const loading = document.getElementById('bioLoading');
@@ -694,13 +765,13 @@ async function initMediaPipe() {
 
     try {
         loadText.textContent = 'LOADING POSE NET...';
-        mpPose = new Pose({ locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${f}` });
+        mpPose = new Pose({ locateFile: f=>`https://cdn.jsdelivr.net/npm/@mediapipe/pose/${f}` });
         mpPose.setOptions({ modelComplexity:1, smoothLandmarks:true, enableSegmentation:false, minDetectionConfidence:0.5, minTrackingConfidence:0.5 });
         mpPose.onResults(onPoseResults);
         await mpPose.initialize();
 
         loadText.textContent = 'LOADING FACE MESH...';
-        mpFaceMesh = new FaceMesh({ locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${f}` });
+        mpFaceMesh = new FaceMesh({ locateFile: f=>`https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${f}` });
         mpFaceMesh.setOptions({ maxNumFaces:1, refineLandmarks:true, minDetectionConfidence:0.5, minTrackingConfidence:0.5 });
         mpFaceMesh.onResults(onFaceResults);
         await mpFaceMesh.initialize();
@@ -710,11 +781,30 @@ async function initMediaPipe() {
         addLogBio('◈ POSE NET ONLINE');
         addLogBio('◈ FACE MESH ONLINE');
         addLogBio('⬡ BIOMETRIC SCAN ACTIVE');
+
+        // Try to get microphone for audio viz + speech
+        initBioMic();
         startMPLoop();
     } catch(e) {
         loadText.textContent = 'ERROR: ' + e.message;
         console.error('MediaPipe init error:', e);
         setTimeout(()=>loading.classList.remove('show'), 3000);
+    }
+}
+
+async function initBioMic() {
+    try {
+        const micStream = await navigator.mediaDevices.getUserMedia({ audio:true, video:false });
+        bioAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        bioAnalyser = bioAudioCtx.createAnalyser();
+        bioAnalyser.fftSize = 256;
+        bioAnalyser.smoothingTimeConstant = 0.75;
+        bioAudioCtx.createMediaStreamSource(micStream).connect(bioAnalyser);
+        bioFreqData = new Uint8Array(bioAnalyser.frequencyBinCount);
+        addLogBio('◈ MIC ACTIVE');
+        initBioSpeech();
+    } catch(e) {
+        addLogBio('MIC: ACCESS DENIED');
     }
 }
 
@@ -728,12 +818,15 @@ function startMPLoop() {
             if (faceFrame % 2 === 0) { try { await mpFaceMesh.send({ image: video }); } catch(_) {} }
             poseFrame++; faceFrame++;
         }
-        setTimeout(mpLoop, 33);
+        mpLoopTimer = setTimeout(mpLoop, 33);
     }
     mpLoop();
 }
 
-function stopMPLoop() { mpLoopActive = false; }
+function stopMPLoop() {
+    mpLoopActive = false;
+    if (mpLoopTimer) { clearTimeout(mpLoopTimer); mpLoopTimer=null; }
+}
 
 function onPoseResults(results) {
     if (!bioRunning) return;
@@ -747,7 +840,7 @@ function onFaceResults(results) {
     drawBioFrame();
 }
 
-/* ══ UNIFIED BIO DRAW ══ */
+/* ══ UNIFIED BIO DRAW (myFACE integration) ══ */
 function drawBioFrame() {
     const dpr = devicePixelRatio;
     const W = innerWidth * dpr, H = innerHeight * dpr;
@@ -771,14 +864,13 @@ function drawBioFrame() {
         drawHandDetails(ctx, lm, W, H, dpr);
         drawPoseBBox(ctx, lm, W, H, dpr);
 
-        // Update pose metric
         const avgConf = lm.reduce((s,p)=>s+(p.visibility||0),0)/lm.length;
         const pPct = Math.round(avgConf*100);
         document.getElementById('bm-pose').style.width = pPct+'%';
         document.getElementById('bmv-pose').textContent = pPct+'%';
     }
 
-    // ── Face mesh (myFACE style) ──
+    // ── Face mesh — full myFACE style ──
     const faces = faceResults && faceResults.multiFaceLandmarks;
     bioFaceVisible = !!(faces && faces.length > 0);
 
@@ -786,12 +878,15 @@ function drawBioFrame() {
     if (bioFaceVisible) {
         const faceLM = faces[0];
 
-        // Determine eye state & color
+        // Eye openness detection
         const ld = Math.hypot(faceLM[159].x - faceLM[145].x, faceLM[159].y - faceLM[145].y);
         const rd = Math.hypot(faceLM[386].x - faceLM[374].x, faceLM[386].y - faceLM[374].y);
         const eyesClosed = ld < 0.015 && rd < 0.015;
-        const faceColor = eyesClosed ? '#ff3030' : '#39ff14';
 
+        // Color logic: speaking=cyan, eyes closed=red, normal=bio-green
+        const faceColor = bioIsSpeaking ? '#00ffff' : (eyesClosed ? '#ff3030' : '#39ff14');
+
+        // Full myFACE face rendering pipeline — NO mirror (rear camera)
         drawFaceTesselation(ctx, faceLM, W, H, faceColor);
         drawFaceOval(ctx, faceLM, W, H, faceColor);
         drawFaceEyes(ctx, faceLM, W, H, faceColor);
@@ -809,21 +904,28 @@ function drawBioFrame() {
         document.getElementById('bm-conf').style.width = conf+'%';
         document.getElementById('bmv-conf').textContent = conf+'%';
 
-        // Reticle position at nose tip
+        // Reticle + target label at nose tip
         const nosePt = faceLM[1];
         const noseX = nosePt.x * innerWidth;
         const noseY = nosePt.y * innerHeight;
+
         const reticle = document.getElementById('bioReticle');
-        reticle.style.left = noseX+'px'; reticle.style.top = noseY+'px';
+        reticle.style.left = noseX+'px';
+        reticle.style.top  = noseY+'px';
         reticle.style.transform = 'translate(-50%,-50%)';
 
-        // Target acquired logic
+        const tgtLabel = document.getElementById('bioTargetLabel');
+        tgtLabel.style.left = noseX+'px';
+        tgtLabel.style.top  = (noseY + 74)+'px';
+
         if (!bioPrevTarget) {
             reticle.classList.add('visible');
+            tgtLabel.classList.add('visible');
             document.getElementById('bioMetrics').classList.add('visible');
             document.getElementById('bioTargetStatus').textContent = '> TARGET: ACQUIRED';
             const acqFlash = document.getElementById('bioAcqFlash');
             acqFlash.classList.remove('flash'); void acqFlash.offsetWidth; acqFlash.classList.add('flash');
+            // Reset typewriter
             bioTypeDone=false; bioTypeIdx=0; bioTypeCharIdx=0;
             bioTypeLines=['','',''];
             bioTypeTargets=[
@@ -841,6 +943,7 @@ function drawBioFrame() {
     } else {
         if (bioPrevTarget) {
             document.getElementById('bioReticle').classList.remove('visible');
+            document.getElementById('bioTargetLabel').classList.remove('visible');
             document.getElementById('bioMetrics').classList.remove('visible');
             document.getElementById('bioTargetStatus').textContent = '> TARGET: SEEKING...';
             clearBioFaceInfo();
@@ -850,17 +953,17 @@ function drawBioFrame() {
         bioPrevTarget = false;
     }
 
-    // Update badge & status
     document.getElementById('skeletonBadge').classList.toggle('show', bioBodyVisible);
     document.getElementById('bioCoordsR').textContent = `FACE:${bioFaceVisible?'01':'00'} BODY:${bioBodyVisible?'01':'00'}`;
 
     drawBioCorners(ctx, W, H, dpr);
 }
 
-/* ── Face drawing helpers (landmark coords → pixels, NO mirror since rear cam) ── */
-function flx(lmX, W) { return lmX * W; } // rear cam: no mirror
+/* ── Coordinate helpers — rear camera, NO mirror ── */
+function flx(lmX, W) { return lmX * W; }
 function fly(lmY, H) { return lmY * H; }
 
+/* ── Face drawing helpers ── */
 function drawContourOnMain(ctx, lm, indices, W, H, color, lw, alpha, close) {
     ctx.save();
     ctx.globalAlpha = alpha;
@@ -879,11 +982,12 @@ function drawContourOnMain(ctx, lm, indices, W, H, color, lw, alpha, close) {
     ctx.restore();
 }
 
+/* Full tesselation — uses FACEMESH_TESSELATION from MediaPipe if available */
 function drawFaceTesselation(ctx, lm, W, H, color) {
-    const tess = getTesselation();
+    const tess = (typeof FACEMESH_TESSELATION !== 'undefined') ? FACEMESH_TESSELATION : [];
     if (!tess.length) return;
     ctx.save();
-    ctx.globalAlpha = 0.13;
+    ctx.globalAlpha = 0.18;
     ctx.strokeStyle = color;
     ctx.lineWidth = 0.4;
     ctx.shadowBlur = 0;
@@ -960,7 +1064,7 @@ function drawFaceScanLine(ctx, lm, W, H) {
     ctx.restore();
 }
 
-/* ── Face info typewriter ── */
+/* ── Face info typewriter above forehead ── */
 function updateBioFaceInfo(lm, W, H, now) {
     const topPt = lm[10];
     const foreX = flx(topPt.x, W) / devicePixelRatio;
@@ -981,9 +1085,11 @@ function updateBioFaceInfo(lm, W, H, now) {
             }
         }
     }
+    const glitch = bioFrameGlitch && now < bioGlitchEnd;
+    const sfx = glitch ? (Math.random()>0.5?'_':' ') : '';
     document.getElementById('bfi-0').textContent = bioTypeLines[0]+(bioTypeIdx===0?'_':'');
     document.getElementById('bfi-1').textContent = bioTypeLines[1]+(bioTypeIdx===1?'_':'');
-    document.getElementById('bfi-2').textContent = bioTypeLines[2]+(bioTypeIdx===2?'_':'');
+    document.getElementById('bfi-2').textContent = bioTypeLines[2]+(bioTypeIdx===2?'_':'')+sfx;
 }
 
 function clearBioFaceInfo() {
@@ -992,20 +1098,31 @@ function clearBioFaceInfo() {
     bioTypeLines=['','','']; bioTypeTimer=0;
 }
 
+/* Periodic glitch on face info */
+setInterval(()=>{
+    if(bioFaceVisible) {
+        bioFrameGlitch=true;
+        bioGlitchEnd=performance.now()+200+Math.random()*300;
+        const el=document.getElementById('bioFaceInfo');
+        el.classList.add('glitch');
+        setTimeout(()=>{ bioFrameGlitch=false; el.classList.remove('glitch'); },500);
+    }
+}, 3000+Math.random()*4000);
+
 /* ── Pose skeleton drawing ── */
 function drawPoseSkeleton(ctx, lm, W, H, dpr) {
     function segColor(a,b) {
-        const isHead = HEAD_LANDMARKS.has(a)||HEAD_LANDMARKS.has(b);
-        const isArm  = [11,12,13,14].some(x=>x===a||x===b);
-        const isLeg  = [23,24,25,26,27,28,29,30,31,32].some(x=>x===a||x===b);
-        if (isHead) return {r:200,g:80,b:255};
-        if (isArm)  return {r:160,g:255,b:50};
-        if (isLeg)  return {r:0,g:180,b:255};
+        const isHead=HEAD_LANDMARKS.has(a)||HEAD_LANDMARKS.has(b);
+        const isArm=[11,12,13,14].some(x=>x===a||x===b);
+        const isLeg=[23,24,25,26,27,28,29,30,31,32].some(x=>x===a||x===b);
+        if(isHead) return {r:200,g:80,b:255};
+        if(isArm)  return {r:160,g:255,b:50};
+        if(isLeg)  return {r:0,g:180,b:255};
         return {r:57,g:255,b:20};
     }
     ctx.save();
-    POSE_CONNECTIONS.forEach(([a,b]) => {
-        const pa=lm[a], pb=lm[b]; if(!pa||!pb) return;
+    POSE_CONNECTIONS.forEach(([a,b])=>{
+        const pa=lm[a],pb=lm[b]; if(!pa||!pb) return;
         if(pa.visibility<0.3||pb.visibility<0.3) return;
         const x1=pa.x*W,y1=pa.y*H,x2=pb.x*W,y2=pb.y*H;
         const conf=(pa.visibility+pb.visibility)/2;
@@ -1035,10 +1152,10 @@ function drawPoseJoints(ctx, lm, W, H, dpr) {
         return {r:57,g:255,b:20};
     }
     ctx.save();
-    lm.forEach((p,i) => {
+    lm.forEach((p,i)=>{
         if(HEAD_LANDMARKS.has(i)||HAND_LANDMARKS.has(i)) return;
         if(p.visibility<0.38) return;
-        const x=p.x*W, y=p.y*H;
+        const x=p.x*W,y=p.y*H;
         const alpha=0.55+p.visibility*0.45;
         const c=segColor(i);
         const col=`rgba(${c.r},${c.g},${c.b},${alpha})`;
@@ -1063,13 +1180,10 @@ function drawPoseJoints(ctx, lm, W, H, dpr) {
 }
 
 function drawHandDetails(ctx, lm, W, H, dpr) {
-    function drawHand(wristIdx, pinkyIdx, indexIdx, thumbIdx) {
+    function drawHand(wristIdx,pinkyIdx,indexIdx,thumbIdx) {
         const w=lm[wristIdx],pk=lm[pinkyIdx],ix=lm[indexIdx],th=lm[thumbIdx];
         if(!w||!pk||!ix||!th||w.visibility<0.35) return;
-        const wx=w.x*W, wy=w.y*H;
-        const pkx=pk.x*W, pky=pk.y*H;
-        const ixx=ix.x*W, ixy=ix.y*H;
-        const thx=th.x*W, thy=th.y*H;
+        const wx=w.x*W,wy=w.y*H,pkx=pk.x*W,pky=pk.y*H,ixx=ix.x*W,ixy=ix.y*H,thx=th.x*W,thy=th.y*H;
         const alpha=0.6+w.visibility*0.4;
         const pulseFill=0.08+Math.sin(Date.now()/350)*0.04;
         ctx.save();
@@ -1094,7 +1208,7 @@ function drawHandDetails(ctx, lm, W, H, dpr) {
         });
         ctx.font=`bold ${9*dpr}px 'Share Tech Mono'`;
         ctx.fillStyle=`rgba(0,220,255,${alpha*0.85})`; ctx.shadowBlur=5*dpr;
-        ctx.fillText(wristIdx===15?'L-HAND':'R-HAND', wx+16*dpr, wy-8*dpr);
+        ctx.fillText(wristIdx===15?'L-HAND':'R-HAND',wx+16*dpr,wy-8*dpr);
         ctx.restore();
     }
     drawHand(15,17,19,21);
@@ -1104,9 +1218,9 @@ function drawHandDetails(ctx, lm, W, H, dpr) {
 function drawPoseBBox(ctx, lm, W, H, dpr) {
     const visLm=lm.filter(p=>p.visibility>0.4);
     if(visLm.length<4) return;
-    const xs=visLm.map(p=>p.x*W), ys=visLm.map(p=>p.y*H);
-    const bx=Math.min(...xs)-20*dpr, by=Math.min(...ys)-20*dpr;
-    const bw=Math.max(...xs)-bx+20*dpr, bh=Math.max(...ys)-by+20*dpr;
+    const xs=visLm.map(p=>p.x*W),ys=visLm.map(p=>p.y*H);
+    const bx=Math.min(...xs)-20*dpr,by=Math.min(...ys)-20*dpr;
+    const bw=Math.max(...xs)-bx+20*dpr,bh=Math.max(...ys)-by+20*dpr;
     const pulse=0.6+Math.sin(Date.now()/400)*0.4;
     const avgConf=lm.reduce((s,p)=>s+(p.visibility||0),0)/lm.length;
     ctx.save();
@@ -1123,7 +1237,7 @@ function drawPoseBBox(ctx, lm, W, H, dpr) {
     ctx.stroke();
     ctx.shadowBlur=6; ctx.fillStyle='rgba(57,255,20,0.85)';
     ctx.font=`bold ${10*dpr}px 'Share Tech Mono'`;
-    ctx.fillText(`BODY | CONF:${Math.round(avgConf*100)}%`, bx, by-6*dpr);
+    ctx.fillText(`BODY | CONF:${Math.round(avgConf*100)}%`,bx,by-6*dpr);
     ctx.restore();
 }
 
@@ -1146,7 +1260,7 @@ function drawBodySilhouette(ctx, lm, W, H, dpr) {
     ctx.save();
     ctx.beginPath(); ctx.moveTo(expanded[0].x,expanded[0].y);
     for(let i=1;i<expanded.length-1;i++){
-        const mx=(expanded[i].x+expanded[i+1].x)/2, my=(expanded[i].y+expanded[i+1].y)/2;
+        const mx=(expanded[i].x+expanded[i+1].x)/2,my=(expanded[i].y+expanded[i+1].y)/2;
         ctx.quadraticCurveTo(expanded[i].x,expanded[i].y,mx,my);
     }
     ctx.quadraticCurveTo(expanded[expanded.length-1].x,expanded[expanded.length-1].y,expanded[0].x,expanded[0].y);
@@ -1192,7 +1306,7 @@ function addLogBio(msg) {
 document.getElementById('modeToggle').onclick = () => {
     if(isTransitioning) return;
     const idx=MODES.indexOf(currentMode);
-    setMode(MODES[(idx+1)%MODES.length], true);
+    setMode(MODES[(idx+1)%MODES.length],true);
 };
 
 function buildGlitchBands(toMode) {
@@ -1200,7 +1314,7 @@ function buildGlitchBands(toMode) {
     const count=8+Math.floor(Math.random()*6);
     for(let i=0;i<count;i++){
         const band=document.createElement('div'); band.className='gb-band';
-        const h=2+Math.random()*18, top=Math.random()*100, tx=(Math.random()-0.5)*60;
+        const h=2+Math.random()*18,top=Math.random()*100,tx=(Math.random()-0.5)*60;
         band.style.cssText=`top:${top}%;height:${h}px;transform:translateX(${tx}px);`;
         gb.appendChild(band);
     }
@@ -1241,8 +1355,8 @@ function runGlitchTransition(toMode) {
 
 function triggerModeTransition(toMode, cb) {
     isTransitioning=true;
-    const overlay=document.getElementById('modeTransition'), scanWipe=document.getElementById('modeScanWipe');
-    const gb=document.getElementById('glitchBands'), rgb=document.getElementById('rgbSplit');
+    const overlay=document.getElementById('modeTransition'),scanWipe=document.getElementById('modeScanWipe');
+    const gb=document.getElementById('glitchBands'),rgb=document.getElementById('rgbSplit');
     const cls='to-'+toMode;
     overlay.className='active '+cls; scanWipe.className='active '+cls;
     gb.className='active '+cls; buildGlitchBands(toMode);
@@ -1252,18 +1366,21 @@ function triggerModeTransition(toMode, cb) {
     setTimeout(cb,100);
 }
 
-function setMode(mode, animated) {
-    if(animated) { triggerModeTransition(mode, ()=>applyMode(mode)); }
-    else { applyMode(mode); }
+function setMode(mode,animated) {
+    if(animated){ triggerModeTransition(mode,()=>applyMode(mode)); }
+    else{ applyMode(mode); }
 }
 
 function applyMode(mode) {
     currentMode=mode;
-    const wcUI=document.getElementById('wcUI'), tgtUI=document.getElementById('tgtUI'), bioUI=document.getElementById('bioUI');
-    const toggle=document.getElementById('modeToggle'), btnTxt=document.getElementById('modeBtnText');
+    const wcUI=document.getElementById('wcUI'),tgtUI=document.getElementById('tgtUI'),bioUI=document.getElementById('bioUI');
+    const toggle=document.getElementById('modeToggle'),btnTxt=document.getElementById('modeBtnText');
     const wglC=document.getElementById('webglCanvas');
-    const sc1=document.getElementById('scanlines'), sc2=document.getElementById('scanlinesTgt'), sc3=document.getElementById('scanlinesBio');
-    const vig=document.getElementById('vignette'), vigB=document.getElementById('vignetteBio');
+    const sc1=document.getElementById('scanlines'),sc2=document.getElementById('scanlinesTgt'),sc3=document.getElementById('scanlinesBio');
+    const vig=document.getElementById('vignette'),vigB=document.getElementById('vignetteBio');
+
+    // Stop bio speech when leaving bio mode
+    if (currentMode!=='bio') stopBioSpeech();
 
     wcUI.style.display='none'; tgtUI.style.display='none'; bioUI.style.display='none';
     wglC.style.display='none'; hudCanvas.style.display='none';
@@ -1302,10 +1419,19 @@ function applyMode(mode) {
         video.className='mode-bio'; toggle.className='mode-bio';
         bioMain.width=innerWidth*devicePixelRatio; bioMain.height=innerHeight*devicePixelRatio;
         bioRunning=true;
+        // Reset state
+        bioPrevTarget=false; bioAcquiredLogged=false;
+        poseResults=null; faceResults=null;
         addLogBio("◈ BIOMETRIC MODE ONLINE");
         addLogBio("⬡ LOADING NEURAL MESH...");
         if (!mpInitialized) { initMediaPipe(); }
-        else { startMPLoop(); addLogBio("◈ POSE + FACE MESH ACTIVE"); }
+        else {
+            startMPLoop();
+            addLogBio("◈ POSE + FACE MESH ACTIVE");
+            // Re-init mic/speech each time bio mode is entered
+            if (!bioAudioCtx) initBioMic();
+            else if (_SR) startBioRecognition('ru-RU');
+        }
     }
 }
 
@@ -1344,7 +1470,7 @@ function initWebGL() {
     gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);
     gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
-    const uT=gl.getUniformLocation(glProg,'uTime'), uEw=gl.getUniformLocation(glProg,'uEwIntensity');
+    const uT=gl.getUniformLocation(glProg,'uTime'),uEw=gl.getUniformLocation(glProg,'uEwIntensity');
     uRectsLoc=gl.getUniformLocation(glProg,'uRects'); uCountLoc=gl.getUniformLocation(glProg,'uCount');
     uRevIdxLoc=gl.getUniformLocation(glProg,'uRevealIndex'); uRevProgLoc=gl.getUniformLocation(glProg,'uRevealProgress');
     gl.uniform4fv(uRectsLoc,new Float32Array(40)); gl.uniform1i(uCountLoc,0);
@@ -1378,8 +1504,8 @@ function updateShaderRects() {
 function initTapHandler() {
     function onTap(e) {
         if(currentMode!=='wc'||!video.videoWidth)return;
-        const r=tapCanvas.getBoundingClientRect(), tx=e.clientX-r.left, ty=e.clientY-r.top;
-        const sx=tapCanvas.width/video.videoWidth, sy=tapCanvas.height/video.videoHeight;
+        const r=tapCanvas.getBoundingClientRect(),tx=e.clientX-r.left,ty=e.clientY-r.top;
+        const sx=tapCanvas.width/video.videoWidth,sy=tapCanvas.height/video.videoHeight;
         let hit=-1;
         for(let i=0;i<allPredictions.length;i++){
             const[x,y,w,h]=allPredictions[i].bbox;
@@ -1408,7 +1534,7 @@ function drawHUD() {
     tapCanvas.width=innerWidth; tapCanvas.height=innerHeight;
     hudCtx.clearRect(0,0,hudCanvas.width,hudCanvas.height);
     if(currentMode!=='wc'||video.videoWidth===0){requestAnimationFrame(drawHUD);return;}
-    const sx=hudCanvas.width/video.videoWidth, sy=hudCanvas.height/video.videoHeight;
+    const sx=hudCanvas.width/video.videoWidth,sy=hudCanvas.height/video.videoHeight;
     allPredictions.forEach((p,idx)=>{
         const[x,y,w,h]=p.bbox;
         const sxp=x*sx,syp=y*sy,swp=w*sx,shp=h*sy;
@@ -1645,20 +1771,16 @@ function startBioTopClock() {
     setInterval(()=>{ const el=document.getElementById('bioTopTime'); if(el) el.textContent=tsTGT(); },1000);
 }
 
-/* Periodic glitch effect for face info */
-setInterval(()=>{
-    if(bioFaceVisible) {
-        const el=document.getElementById('bioFaceInfo');
-        el.classList.add('glitch');
-        setTimeout(()=>el.classList.remove('glitch'), 500);
-    }
-}, 3000+Math.random()*4000);
-
 window.addEventListener('resize',()=>{
     hudCanvas.width=innerWidth; hudCanvas.height=innerHeight;
     tapCanvas.width=innerWidth; tapCanvas.height=innerHeight;
     tgtCanvas.width=innerWidth*devicePixelRatio; tgtCanvas.height=innerHeight*devicePixelRatio;
     bioMain.width=innerWidth*devicePixelRatio; bioMain.height=innerHeight*devicePixelRatio;
+});
+
+window.addEventListener('beforeunload',()=>{
+    stopBioSpeech();
+    if(bioAudioCtx) bioAudioCtx.close().catch(()=>{});
 });
 </script>
 
