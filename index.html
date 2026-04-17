@@ -6,14 +6,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>myWLK v4 // BIOMETRIC</title>
     <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@300;500;700&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
-    <!-- Three.js for green mode -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <!-- TF + COCO-SSD -->
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3"></script>
-    <!-- jsPDF for green terminal export -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <!-- MediaPipe for bio mode -->
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
@@ -32,9 +27,10 @@
 
 ```
     /* ── VIDEO ── */
-    video { position:absolute; top:0; left:0; width:100%; height:100%; object-fit:cover; display:none; z-index:0; }
+    video { position:absolute; top:0; left:0; width:100%; height:100%; object-fit:cover; display:none; z-index:0; transform-origin:center center; transition:transform 0.2s ease; }
     video.mode-target { display:block; filter:brightness(0.45) contrast(1.3) saturate(0.1) hue-rotate(180deg); }
     video.mode-bio    { display:block; filter:brightness(0.38) contrast(1.3) saturate(0.08) hue-rotate(100deg); }
+    video.mode-wc-active { display:block; }
 
     /* ── CANVASES ── */
     #threeCanvas   { position:absolute; top:0; left:0; width:100%; height:100%; z-index:1; display:none; }
@@ -62,32 +58,75 @@
     #vignetteBio  { position:absolute; inset:0; pointer-events:none; z-index:4; display:none;
         background:radial-gradient(ellipse 90% 90% at 50% 50%,transparent 40%,rgba(0,5,0,0.45) 100%); }
 
-    /* ── MODE TRANSITIONS ── */
+    /* ── РЕЖИМНЫЕ ПЕРЕХОДЫ (ENHANCED) ── */
     #modeTransition { position:absolute; inset:0; z-index:200; pointer-events:none; opacity:0; }
-    #modeTransition.active { animation:modeFlash 0.7s ease forwards; }
-    @keyframes modeFlash { 0%{opacity:0} 12%{opacity:1} 38%{opacity:0.8} 55%{opacity:0.3} 100%{opacity:0} }
-    #modeTransition.to-wc  { background:radial-gradient(circle at 50% 50%,rgba(0,255,65,0.4) 0%,rgba(0,30,0,0.65) 60%,transparent 100%); }
-    #modeTransition.to-tgt { background:radial-gradient(circle at 50% 50%,rgba(255,20,20,0.4) 0%,rgba(30,0,0,0.65) 60%,transparent 100%); }
-    #modeTransition.to-bio { background:radial-gradient(circle at 50% 50%,rgba(57,255,20,0.45) 0%,rgba(0,20,0,0.8) 60%,transparent 100%); }
+    #modeTransition.active { animation:modeFlash 0.8s ease forwards; }
+    @keyframes modeFlash { 0%{opacity:0} 10%{opacity:1} 35%{opacity:0.9} 55%{opacity:0.4} 100%{opacity:0} }
+    #modeTransition.to-wc  { background:radial-gradient(circle at 50% 50%,rgba(0,255,65,0.5) 0%,rgba(0,30,0,0.75) 60%,transparent 100%); }
+    #modeTransition.to-tgt { background:radial-gradient(circle at 50% 50%,rgba(255,20,20,0.5) 0%,rgba(30,0,0,0.75) 60%,transparent 100%); }
+    #modeTransition.to-bio { background:radial-gradient(circle at 50% 50%,rgba(57,255,20,0.55) 0%,rgba(0,20,0,0.9) 60%,transparent 100%); }
 
     #glitchBands  { position:absolute; inset:0; z-index:201; pointer-events:none; opacity:0; overflow:hidden; }
-    #glitchBands.active { animation:glitchBandsAnim 0.65s steps(1) forwards; }
+    #glitchBands.active { animation:glitchBandsAnim 0.7s steps(1) forwards; }
     @keyframes glitchBandsAnim { 0%{opacity:0} 5%{opacity:1} 15%{opacity:0} 22%{opacity:1} 30%{opacity:0} 38%{opacity:1} 50%{opacity:0} 60%{opacity:0.6} 75%{opacity:0} 100%{opacity:0} }
     .gb-band { position:absolute; left:0; right:0; background:currentColor; }
-    #glitchBands.to-wc  { color:rgba(0,255,65,0.35); }
-    #glitchBands.to-tgt { color:rgba(255,32,32,0.35); }
-    #glitchBands.to-bio { color:rgba(57,255,20,0.4); }
+    #glitchBands.to-wc  { color:rgba(0,255,65,0.4); }
+    #glitchBands.to-tgt { color:rgba(255,32,32,0.4); }
+    #glitchBands.to-bio { color:rgba(57,255,20,0.45); }
 
     #modeScanWipe { position:absolute; inset:0; z-index:199; pointer-events:none; opacity:0; overflow:hidden; }
-    #modeScanWipe.active { animation:wipeAnim 0.6s ease forwards; }
-    #modeScanWipe::before { content:''; position:absolute; left:0; right:0; height:4px; top:-4px; background:currentColor;
-        box-shadow:0 0 24px 6px currentColor, 0 0 70px 14px currentColor; }
-    #modeScanWipe.active::before { animation:scanWipeLine 0.6s ease forwards; }
+    #modeScanWipe.active { animation:wipeAnim 0.7s ease forwards; }
+    #modeScanWipe::before { content:''; position:absolute; left:0; right:0; height:6px; top:-6px; background:currentColor;
+        box-shadow:0 0 30px 10px currentColor, 0 0 80px 20px currentColor; }
+    #modeScanWipe.active::before { animation:scanWipeLine 0.7s ease forwards; }
     @keyframes wipeAnim    { 0%{opacity:1} 100%{opacity:0} }
-    @keyframes scanWipeLine{ 0%{top:-4px} 100%{top:100vh} }
+    @keyframes scanWipeLine{ 0%{top:-6px} 100%{top:100vh} }
     #modeScanWipe.to-wc  { color:var(--green); }
     #modeScanWipe.to-tgt { color:var(--red); }
     #modeScanWipe.to-bio { color:var(--bio); }
+
+    /* ── НОВЫЙ ЭФФЕКТ: ПИКСЕЛЬНЫЙ РАСПАД ── */
+    #pixelDissolve { position:absolute; inset:0; z-index:202; pointer-events:none; opacity:0; }
+    #pixelDissolve.active { animation:dissolveAnim 0.8s steps(1) forwards; }
+    @keyframes dissolveAnim {
+        0%  { opacity:0; }
+        8%  { opacity:1; }
+        20% { opacity:0.85; }
+        40% { opacity:0.6; }
+        65% { opacity:0.3; }
+        100%{ opacity:0; }
+    }
+
+    /* ── НОВЫЙ ЭФФЕКТ: ЦИФРОВОЙ ШУМ (canvas overlay) ── */
+    #noiseOverlay { position:absolute; inset:0; z-index:203; pointer-events:none; opacity:0; display:none; }
+
+    /* ── РЕЖИМНЫЙ ЯРЛЫК ── */
+    #modeBadge {
+        position:absolute; top:50%; left:50%; transform:translate(-50%,-50%) scale(0.5);
+        z-index:210; pointer-events:none; opacity:0;
+        font-family:var(--orb); font-size:clamp(20px,5vw,42px); font-weight:900;
+        letter-spacing:8px; text-transform:uppercase; white-space:nowrap;
+        transition:none;
+    }
+    #modeBadge.show { animation:badgeAnim 0.8s cubic-bezier(0.16,1,0.3,1) forwards; }
+    @keyframes badgeAnim {
+        0%   { opacity:0; transform:translate(-50%,-50%) scale(0.3); filter:blur(20px); }
+        25%  { opacity:1; transform:translate(-50%,-50%) scale(1.12); filter:blur(0px); }
+        55%  { opacity:1; transform:translate(-50%,-50%) scale(0.97); }
+        70%  { opacity:1; transform:translate(-50%,-50%) scale(1.02); }
+        85%  { opacity:0.7; transform:translate(-50%,-50%) scale(1); }
+        100% { opacity:0; transform:translate(-50%,-50%) scale(1); filter:blur(8px); }
+    }
+    #modeBadge.badge-wc  { color:var(--green); text-shadow:0 0 30px var(--green),0 0 60px rgba(0,255,65,0.5); }
+    #modeBadge.badge-tgt { color:var(--red);   text-shadow:0 0 30px var(--red),0 0 60px rgba(255,32,32,0.5); }
+    #modeBadge.badge-bio { color:var(--bio);   text-shadow:0 0 30px var(--bio),0 0 60px rgba(57,255,20,0.5); }
+
+    /* ── РЕЖИМНЫЙ ПЕРЕХОД: ХРОМАТ. АБЕРРАЦИЯ ── */
+    #chromaticR, #chromaticB { position:absolute; inset:0; z-index:198; pointer-events:none; opacity:0; mix-blend-mode:screen; }
+    #chromaticR.active { animation:chromR 0.55s ease forwards; background:rgba(255,0,0,0.06); }
+    #chromaticB.active { animation:chromB 0.55s ease forwards; background:rgba(0,0,255,0.06); }
+    @keyframes chromR { 0%{opacity:0;transform:translateX(-8px)} 30%{opacity:1} 100%{opacity:0;transform:translateX(8px)} }
+    @keyframes chromB { 0%{opacity:0;transform:translateX(8px)}  30%{opacity:1} 100%{opacity:0;transform:translateX(-8px)} }
 
     /* ── MODE TOGGLE ── */
     #modeToggle { position:absolute; top:12px; right:12px; z-index:50; display:none;
@@ -111,6 +150,40 @@
     .md-dot.active-tgt { background:var(--red);   box-shadow:0 0 6px var(--red); }
     .md-dot.active-bio { background:var(--bio);   box-shadow:0 0 8px var(--bio); }
 
+    /* ── КНОПКИ ЗУМА (общие для всех режимов) ── */
+    #zoomControls {
+        position:absolute; bottom:48px; left:50%; transform:translateX(-50%);
+        z-index:60; display:none; flex-direction:row; align-items:center; gap:0;
+    }
+    .zoom-btn {
+        width:42px; height:42px; background:rgba(0,0,0,0.72);
+        border:1px solid rgba(255,255,255,0.18); color:rgba(255,255,255,0.75);
+        font-family:var(--mono); font-size:20px; font-weight:700; cursor:pointer;
+        display:flex; align-items:center; justify-content:center;
+        transition:all 0.15s; backdrop-filter:blur(6px); -webkit-tap-highlight-color:transparent;
+        user-select:none;
+    }
+    .zoom-btn:first-child { border-radius:3px 0 0 3px; border-right:none; }
+    .zoom-btn:last-child  { border-radius:0 3px 3px 0; border-left:none; }
+    .zoom-btn:active { transform:scale(0.91); }
+    #zoomLabel {
+        height:42px; min-width:52px; background:rgba(0,0,0,0.72);
+        border-top:1px solid rgba(255,255,255,0.18); border-bottom:1px solid rgba(255,255,255,0.18);
+        display:flex; align-items:center; justify-content:center;
+        font-family:var(--orb); font-size:9px; letter-spacing:2px;
+        backdrop-filter:blur(6px);
+    }
+    /* Цвет зума по режиму */
+    #zoomControls.z-wc .zoom-btn  { border-color:rgba(0,255,65,0.35); color:var(--green); }
+    #zoomControls.z-wc #zoomLabel { border-color:rgba(0,255,65,0.35); color:rgba(0,255,65,0.8); background:rgba(0,8,0,0.8); }
+    #zoomControls.z-wc .zoom-btn:hover { background:rgba(0,255,65,0.15); }
+    #zoomControls.z-tgt .zoom-btn  { border-color:rgba(255,32,32,0.35); color:var(--red); }
+    #zoomControls.z-tgt #zoomLabel { border-color:rgba(255,32,32,0.35); color:rgba(255,80,80,0.9); background:rgba(10,0,0,0.8); }
+    #zoomControls.z-tgt .zoom-btn:hover { background:rgba(255,32,32,0.15); }
+    #zoomControls.z-bio .zoom-btn  { border-color:rgba(57,255,20,0.35); color:var(--bio); }
+    #zoomControls.z-bio #zoomLabel { border-color:rgba(57,255,20,0.35); color:rgba(57,255,20,0.9); background:rgba(0,8,0,0.8); }
+    #zoomControls.z-bio .zoom-btn:hover { background:rgba(57,255,20,0.15); }
+
     /* ── START BUTTON ── */
     #startBtn { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
         background:none; border:none; color:#fff; font-family:var(--sans); font-size:11px;
@@ -127,12 +200,8 @@
     #flashOverlay.flash { animation:scrFlash 0.25s ease forwards; }
     @keyframes scrFlash { 0%{background:rgba(255,255,255,0.2)} 100%{background:rgba(255,255,255,0)} }
 
-    /* ══════════════════════════════════
-       GREEN (WHITE CORE) MODE — my3DS style
-    ══════════════════════════════════ */
+    /* ══ GREEN MODE ══ */
     #wcUI { display:none; }
-
-    /* GREEN HUD */
     .green-hud-corners .corner { position:absolute; width:30px; height:30px; border-color:var(--green); border-style:solid; opacity:.7; }
     .green-hud-corners .corner.tl { top:16px; left:16px; border-width:2px 0 0 2px; }
     .green-hud-corners .corner.tr { top:16px; right:16px; border-width:2px 2px 0 0; }
@@ -155,12 +224,10 @@
     #greenObjCount { position:absolute; bottom:95px; right:20px; font-size:8px; letter-spacing:2px;
         color:rgba(0,255,65,.6); display:none; z-index:15; pointer-events:none; }
 
-    /* Scanlines overlay on green canvas */
     #greenScanlines { position:absolute; inset:0; pointer-events:none; z-index:2;
         background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,.12) 3px,rgba(0,0,0,.12) 4px);
         display:none; }
 
-    /* Bottom chrome */
     #greenBottomChrome { position:absolute; bottom:0; left:0; right:0; z-index:20; pointer-events:all; display:none; }
     #greenModeControls { display:flex; align-items:center; justify-content:center; gap:12px;
         padding:8px 16px 4px; background:rgba(0,0,0,.80); min-height:52px; }
@@ -169,12 +236,10 @@
     #greenFilterLabel { font-family:var(--orb); font-size:9px; letter-spacing:4px;
         text-transform:uppercase; color:rgba(0,255,65,.55); }
 
-    /* Loading bar */
     #greenLoadingBar { position:absolute; bottom:90px; left:50%; transform:translateX(-50%);
         width:200px; height:2px; background:#111; z-index:30; display:none; }
     #greenLoadingProg { height:100%; width:0%; background:var(--green); box-shadow:0 0 8px var(--green); transition:width .3s; }
 
-    /* Ctrl buttons */
     .ctrl-btn { height:38px; padding:0 18px; min-width:80px; background:rgba(0,0,0,.55);
         border:1px solid; border-radius:2px; font-family:var(--mono); font-size:8px;
         letter-spacing:2px; text-transform:uppercase; cursor:pointer;
@@ -185,7 +250,6 @@
     .ctrl-btn.g-btn.on { background:rgba(0,255,65,.18); border-color:var(--green); color:var(--green); box-shadow:0 0 10px rgba(0,255,65,.3); }
     .ctrl-sep-el { width:1px; height:28px; background:rgba(255,255,255,.08); flex-shrink:0; }
 
-    /* Mode switch button (bottom bar) */
     .mode-switch-btn { height:38px; padding:0 20px; background:rgba(10,10,10,.7);
         border:1px solid rgba(255,255,255,.2); border-radius:2px;
         font-family:var(--mono); font-size:8px; letter-spacing:3px; text-transform:uppercase;
@@ -198,43 +262,6 @@
     .mode-switch-btn.m-tgt .mode-dot-sw { background:var(--red); box-shadow:0 0 6px var(--red); }
     .mode-switch-btn.m-bio { border-color:rgba(57,255,20,.5); color:var(--bio); }
     .mode-switch-btn.m-bio .mode-dot-sw { background:var(--bio); box-shadow:0 0 8px var(--bio); }
-
-    /* ── GREEN TERMINAL MODAL ── */
-    #terminal-modal { position:fixed; inset:0; z-index:300; display:none; flex-direction:column;
-        background:rgba(0,0,0,.92); backdrop-filter:blur(4px); animation:termOpen .25s ease; }
-    #terminal-modal.active { display:flex; }
-    @keyframes termOpen { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
-    #term-header { display:flex; align-items:center; justify-content:space-between;
-        padding:10px 16px; border-bottom:1px solid rgba(0,255,65,.25); background:rgba(0,255,65,.04); }
-    #term-title { font-family:var(--orb); font-size:10px; letter-spacing:4px; color:var(--green); }
-    .term-hdr-meta { font-size:8px; letter-spacing:2px; color:rgba(0,255,65,.4); }
-    #term-close { padding:6px 14px; background:transparent; border:1px solid rgba(0,255,65,.4);
-        color:var(--green); font-family:var(--mono); font-size:8px; letter-spacing:2px; cursor:pointer; transition:background .2s; }
-    #term-close:hover { background:rgba(0,255,65,.15); }
-    #term-body { flex:1; overflow-y:auto; padding:14px 16px; display:flex; flex-direction:column; gap:12px; }
-    #term-body::-webkit-scrollbar { width:4px; }
-    #term-body::-webkit-scrollbar-track { background:#000; }
-    #term-body::-webkit-scrollbar-thumb { background:rgba(0,255,65,.3); }
-    #term-photo { width:100%; border:1px solid rgba(0,255,65,.3); position:relative; flex-shrink:0; }
-    #term-photo canvas { width:100%; display:block; }
-    #term-photo-label { position:absolute; bottom:6px; right:8px; font-size:7px; letter-spacing:2px; color:rgba(0,255,65,.55); }
-    .det-table { width:100%; border-collapse:collapse; font-size:9px; }
-    .det-table th { text-align:left; padding:5px 8px; color:rgba(0,255,65,.4); border-bottom:1px solid rgba(0,255,65,.12); letter-spacing:2px; font-size:7px; }
-    .det-table td { padding:5px 8px; border-bottom:1px solid rgba(0,255,65,.06); color:rgba(0,255,65,.85); }
-    .conf-bar { display:inline-block; height:4px; background:var(--green); box-shadow:0 0 4px var(--green); vertical-align:middle; margin-right:6px; border-radius:1px; }
-    .conf-val { vertical-align:middle; }
-    .det-idx { color:rgba(0,255,65,.25); font-size:8px; }
-    #term-summary { font-size:8px; letter-spacing:1.5px; line-height:2; color:rgba(0,255,65,.5);
-        border:1px solid rgba(0,255,65,.12); padding:10px 12px; background:rgba(0,255,65,.025); }
-    #term-summary b { color:rgba(0,255,65,.85); }
-    #term-actions { display:flex; gap:10px; padding:10px 16px 14px; border-top:1px solid rgba(0,255,65,.1);
-        background:rgba(0,0,0,.6); flex-wrap:wrap; }
-    .term-btn { flex:1; min-width:100px; padding:10px; background:transparent;
-        border:1px solid rgba(0,255,65,.35); color:rgba(0,255,65,.7); font-family:var(--mono);
-        font-size:8px; letter-spacing:2px; cursor:pointer; text-transform:uppercase; transition:all .2s; }
-    .term-btn:hover { background:rgba(0,255,65,.12); color:var(--green); border-color:var(--green); }
-    .term-btn.primary { border-color:var(--green); color:var(--green); background:rgba(0,255,65,.08); }
-    .term-btn.primary:hover { background:rgba(0,255,65,.2); }
 
     /* ══ TARGET UI ══ */
     #tgtUI { display:none; }
@@ -361,15 +388,6 @@
         background:rgba(0,5,0,0.8); opacity:0; transition:opacity 0.3s; white-space:nowrap; }
     #skeletonBadge.show { opacity:1; }
     #skeletonBadge::before { content:'◈ '; } #skeletonBadge::after { content:' ◈'; }
-    #bioVizWrap { position:absolute; bottom:48px; right:20px; z-index:15; pointer-events:none; width:160px; }
-    #bioVizLabel { font-size:7px; letter-spacing:3px; color:rgba(57,255,20,0.3); margin-bottom:4px; font-family:var(--mono); }
-    #bioAudioViz { width:160px; height:40px; display:block; }
-    #bioSpeechBox { position:absolute; bottom:48px; left:50%; transform:translateX(-50%); z-index:15;
-        pointer-events:none; font-family:var(--orb); font-size:clamp(11px,2vw,16px); font-weight:700;
-        letter-spacing:3px; color:rgba(57,255,20,0.5); min-height:24px; text-align:center;
-        white-space:nowrap; transition:color 0.3s; text-shadow:0 0 12px rgba(57,255,20,0.3);
-        max-width:60vw; overflow:hidden; text-overflow:ellipsis; }
-    #bioSpeechBox.speaking { color:var(--bio); text-shadow:0 0 18px var(--bio); }
     #bioLoading { position:absolute; inset:0; z-index:100; display:none; align-items:center;
         justify-content:center; flex-direction:column; background:rgba(0,0,0,0.9); gap:18px; }
     #bioLoading.show { display:flex; }
@@ -381,7 +399,6 @@
 </head>
 <body>
 <div id="container">
-    <!-- START BUTTON -->
     <button id="startBtn">
         <div class="btn-inner">
             <div class="btn-ring">
@@ -396,13 +413,9 @@
 ```
 <video id="video" autoplay playsinline muted></video>
 
-<!-- Three.js canvas (green mode) -->
 <canvas id="threeCanvas"></canvas>
-<!-- Det canvas (green mode boxes) -->
 <canvas id="detCanvas"></canvas>
-<!-- Target mode canvas -->
 <canvas id="tgtCanvas"></canvas>
-<!-- Bio mode canvas -->
 <canvas id="bioMainCanvas"></canvas>
 
 <div id="scan-sweep-line"></div>
@@ -413,9 +426,15 @@
 <div id="vignetteBio"></div>
 <div id="flashOverlay"></div>
 
+<!-- Эффекты перехода -->
+<div id="chromaticR"></div>
+<div id="chromaticB"></div>
 <div id="modeTransition"></div>
 <div id="modeScanWipe"></div>
 <div id="glitchBands"></div>
+<div id="pixelDissolve"></div>
+<canvas id="noiseOverlay"></canvas>
+<div id="modeBadge"></div>
 
 <button id="modeToggle" class="mode-wc">
     <div class="mode-btn-inner">
@@ -429,9 +448,15 @@
     <div class="md-dot" id="dot-bio"></div>
 </div>
 
-<!-- ══ GREEN (WC) MODE UI — my3DS style ══ -->
+<!-- ZOOM CONTROLS (общие) -->
+<div id="zoomControls" class="z-wc">
+    <button class="zoom-btn" id="zoomOut">−</button>
+    <div id="zoomLabel">×<span id="zoomVal">1.0</span></div>
+    <button class="zoom-btn" id="zoomIn">+</button>
+</div>
+
+<!-- GREEN MODE UI -->
 <div id="wcUI">
-    <!-- Corner decorations -->
     <div class="green-hud-corners">
         <div class="corner tl"></div><div class="corner tr"></div>
         <div class="corner bl"></div><div class="corner br"></div>
@@ -446,20 +471,16 @@
         <span id="greenModelLabel">COCO-SSD: OFFLINE</span>
     </div>
     <div id="greenObjCount"></div>
-    <!-- Loading bar -->
     <div id="greenLoadingBar"><div id="greenLoadingProg"></div></div>
-    <!-- Bottom chrome with mode switch -->
     <div id="greenBottomChrome">
-        <div id="greenModeControls">
-            <!-- buttons built dynamically -->
-        </div>
+        <div id="greenModeControls"></div>
         <div id="greenFilterBar">
             <div id="greenFilterLabel">◈ GREEN EDGE VISION</div>
         </div>
     </div>
 </div>
 
-<!-- ══ TARGET UI ══ -->
+<!-- TARGET UI -->
 <div id="tgtUI">
     <div id="terminalTGT"><span id="cursor"></span></div>
     <div id="statusPanel">
@@ -495,7 +516,7 @@
     </div>
 </div>
 
-<!-- ══ BIOMETRIC MODE UI ══ -->
+<!-- BIOMETRIC UI -->
 <div id="bioUI">
     <div id="bioTopPanel">
         <span id="bioSysLeft">SYS:BIOMETRIC_v3</span>
@@ -546,11 +567,6 @@
             <div class="bm-value" id="bmv-pose">--</div>
         </div>
     </div>
-    <div id="bioVizWrap">
-        <div id="bioVizLabel">AUDIO // dB</div>
-        <canvas id="bioAudioViz"></canvas>
-    </div>
-    <div id="bioSpeechBox">...</div>
     <div id="bioTerminal"></div>
     <div id="botbarBIO">
         <span id="bioCoordsL">BIO:ACTIVE</span>
@@ -559,7 +575,6 @@
     </div>
 </div>
 
-<!-- MediaPipe loading -->
 <div id="bioLoading">
     <div class="bio-load-ring"></div>
     <div class="bio-load-text" id="bioLoadText">LOADING NEURAL MESH...</div>
@@ -568,29 +583,7 @@
 
 </div>
 
-<!-- ══ GREEN TERMINAL MODAL ══ -->
-
-<div id="terminal-modal">
-    <div id="term-header">
-        <div id="term-title">◈ OBJECT ANALYSIS TERMINAL</div>
-        <div class="term-hdr-meta" id="term-ts">--</div>
-        <button id="term-close">✕ CLOSE</button>
-    </div>
-    <div id="term-body">
-        <div id="term-photo"><canvas id="snap-canvas"></canvas><div id="term-photo-label">myWLK v4 · SNAPSHOT</div></div>
-        <table class="det-table" id="det-table">
-            <thead><tr><th>#</th><th>OBJECT</th><th>CONFIDENCE</th><th>POSITION</th><th>SIZE</th></tr></thead>
-            <tbody id="det-tbody"></tbody>
-        </table>
-        <div id="term-summary"></div>
-    </div>
-    <div id="term-actions">
-        <button class="term-btn" id="btn-copy-txt">⬡ COPY TEXT</button>
-        <button class="term-btn primary" id="btn-export-pdf">⬡ EXPORT PDF</button>
-    </div>
-</div>
-
-<!-- ══ THREE.JS SHADERS ══ -->
+<!-- THREE.JS SHADERS -->
 
 <script id="three-vert" type="x-shader/x-vertex">
 varying vec2 vUv;
@@ -625,13 +618,44 @@ void main(){
 
 <script>
 'use strict';
-/* ══════════════════════════════════════════════════════
-   myWLK v4 — Green mode: Three.js Sobel + COCO-SSD (my3DS)
-              Target mode + Bio mode: original myWLK
-══════════════════════════════════════════════════════ */
 
+/* ══════════════════════════════
+   ZOOM STATE (цифровой зум)
+══════════════════════════════ */
+const ZOOM_MIN  = 1.0;
+const ZOOM_MAX  = 4.0;
+const ZOOM_STEP = 0.25;
+let currentZoom = 1.0;
+
+function applyZoom(zoom){
+    currentZoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, zoom));
+    const v = document.getElementById('video');
+    v.style.transform = `scale(${currentZoom})`;
+    document.getElementById('zoomVal').textContent = currentZoom.toFixed(1);
+}
+
+document.getElementById('zoomIn').addEventListener('click',  ()=>applyZoom(currentZoom + ZOOM_STEP));
+document.getElementById('zoomOut').addEventListener('click', ()=>applyZoom(currentZoom - ZOOM_STEP));
+
+/* поддержка pinch-to-zoom как альтернатива */
+let pinchDist0 = null, pinchZoom0 = 1.0;
+document.getElementById('container').addEventListener('touchstart', e=>{
+    if(e.touches.length===2){ pinchDist0=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY); pinchZoom0=currentZoom; }
+},{passive:true});
+document.getElementById('container').addEventListener('touchmove', e=>{
+    if(e.touches.length===2&&pinchDist0){
+        const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);
+        applyZoom(pinchZoom0*(d/pinchDist0));
+    }
+},{passive:true});
+document.getElementById('container').addEventListener('touchend', e=>{ if(e.touches.length<2)pinchDist0=null; },{passive:true});
+
+/* ══════════════════════════════
+   КОНФИГИ
+══════════════════════════════ */
 const MODES = ['wc','tgt','bio'];
 const MODE_LABELS = { wc:'TARGET MODE', tgt:'BIO MODE', bio:'GREEN MODE' };
+const MODE_BADGE_TEXT = { wc:'GREEN VISION', tgt:'TARGET MODE', bio:'BIO SCAN' };
 const THREAT_HIGH   = ['person','car','truck','bus','motorcycle','airplane','boat','train'];
 const THREAT_MEDIUM = ['bicycle','horse','cow','dog','cat','bird','sheep','bear','elephant','zebra','giraffe'];
 function getThreat(c){ return THREAT_HIGH.includes(c)?'HIGH':THREAT_MEDIUM.includes(c)?'MED':'LOW'; }
@@ -650,7 +674,7 @@ let isTransitioning = false;
 let lat = 55.7558 + (Math.random()-.5)*.01;
 let lon = 37.6173 + (Math.random()-.5)*.01;
 
-/* ══ GREEN MODE STATE (my3DS) ══ */
+/* GREEN STATE */
 const G = {
     frameCount:0, lastFpsTime:0,
     cocoModel:null, cocoLoading:false, cocoReady:false,
@@ -662,7 +686,7 @@ const G = {
 let threeRenderer, threeMat;
 const boxesUniform = new Array(20).fill(null).map(()=>new THREE.Vector4(0,0,0,0));
 
-/* ══ TARGET MODE STATE ══ */
+/* TARGET STATE */
 const R = {
     predictions:[], running:false,
     cPos:{x:innerWidth/2,y:innerHeight/2},
@@ -673,56 +697,22 @@ const R = {
     primary:null, logQ:[], logBusy:false,
 };
 
-/* ══ BIO MODE STATE ══ */
+/* BIO STATE */
 let mpPose=null, mpFaceMesh=null;
 let mpLoopActive=false, mpLoopTimer=null;
 let poseResults=null, faceResults=null;
 let mpInitialized=false;
-
 let bioFaceVisible=false, bioBodyVisible=false;
 let bioPrevTarget=false;
 let bioAcquiredLogged=false;
 let bioTypeLines=['','',''];
 let bioTypeTargets=['','',''];
 let bioTypeIdx=0, bioTypeCharIdx=0, bioTypeTimer=0, bioTypeDone=false;
-let bioFrameGlitch=false, bioGlitchEnd=0;
-let bioIsSpeaking=false;
 let bioRunning=false;
 
-let audioCtxNode=null, analyser=null, freqData=null;
-let bioAudioCtx=null, bioAnalyser=null, bioFreqData=null;
-let recognition=null, recRestarting=false, _SR=null;
-
-/* ── Pose landmark data ── */
-const HEAD_LANDMARKS = new Set([0,1,2,3,4,5,6,7,8,9,10]);
-const HAND_LANDMARKS = new Set([15,16,17,18,19,20,21,22]);
-const REGION_HEAD  = [0,1,2,3,4,5,6,7,8,9,10];
-const REGION_TORSO = [11,12,23,24];
-const REGION_L_ARM = [11,13,15,17,19,21];
-const REGION_R_ARM = [12,14,16,18,20,22];
-const REGION_L_LEG = [23,25,27,29,31];
-const REGION_R_LEG = [24,26,28,30,32];
-const REGION_CONNECTIONS = {
-    head:[[0,1],[1,2],[2,3],[3,7],[0,4],[4,5],[5,6],[6,8],[9,10]],
-    torso:[[11,12],[11,23],[12,24],[23,24]],
-    lArm:[[11,13],[13,15]], rArm:[[12,14],[14,16]],
-    lLeg:[[23,25],[25,27],[27,29],[29,31]], rLeg:[[24,26],[26,28],[28,30],[30,32]],
-    lHand:[[15,17],[15,19],[15,21]], rHand:[[16,18],[16,20],[16,22]]
-};
-const FACE_OVAL        = [10,338,297,332,284,251,389,356,454,323,361,288,397,365,379,378,400,377,152,148,176,149,150,136,172,58,132,93,234,127,162,21,54,103,67,109,10];
-const FACE_L_EYE       = [33,7,163,144,145,153,154,155,133,173,157,158,159,160,161,246,33];
-const FACE_R_EYE       = [263,249,390,373,374,380,381,382,362,398,384,385,386,387,388,466,263];
-const FACE_MOUTH_OUTER_TOP    = [61,185,40,39,37,0,267,269,270,409,291];
-const FACE_MOUTH_OUTER_BOTTOM = [291,375,321,405,314,17,84,181,91,146,61];
-const FACE_MOUTH_INNER_TOP    = [78,191,80,81,82,13,312,311,310,415,308];
-const FACE_MOUTH_INNER_BOTTOM = [308,324,318,402,317,14,87,178,88,95,78];
-const FACE_L_BROW      = [70,63,105,66,107,55,65,52,53,46];
-const FACE_R_BROW      = [300,293,334,296,336,285,295,282,283,276];
-const FACE_KEY_DOTS    = [1,4,6,10,152,234,454,33,263,61,291,168,0];
-
-/* ══════════════════════════
+/* ══════════════
    START
-══════════════════════════ */
+══════════════ */
 document.getElementById('startBtn').onclick = async () => {
     const btn = document.getElementById('startBtn');
     btn.style.opacity='0'; btn.style.transition='opacity 0.5s';
@@ -754,11 +744,11 @@ document.getElementById('startBtn').onclick = async () => {
 
         startCoordsDrift();
         startBioTopClock();
-        startBioAudioViz();
 
         setMode('wc', false);
         document.getElementById('modeToggle').style.display = 'block';
         document.getElementById('modeDots').style.display   = 'flex';
+        document.getElementById('zoomControls').style.display = 'flex';
 
         G.lastFpsTime = performance.now();
         setInterval(()=>{
@@ -774,9 +764,9 @@ document.getElementById('startBtn').onclick = async () => {
     }
 };
 
-/* ══════════════════════════
-   THREE.JS SETUP (green mode)
-══════════════════════════ */
+/* ══════════════
+   THREE.JS
+══════════════ */
 function setupThreeJS(){
     const scene = new THREE.Scene();
     const cam   = new THREE.OrthographicCamera(-1,1,1,-1,0,1);
@@ -817,7 +807,7 @@ function pushBoxesToShader(dets){
     threeMat.uniforms.boxes.value    = boxesUniform;
 }
 
-/* ══ COCO-SSD LOAD ══ */
+/* COCO-SSD */
 async function loadCocoSSD(){
     if(G.cocoLoading || G.cocoReady) return;
     G.cocoLoading = true;
@@ -833,7 +823,6 @@ async function loadCocoSSD(){
         setTimeout(()=>{ bar.style.display='none'; }, 600);
         G.cocoReady=true; G.cocoLoading=false;
         dot.className='ready'; lbl.textContent='COCO-SSD: READY';
-        // Also update tgt panel
         document.getElementById('modelStat').textContent='COCO-SSD';
         startGreenDetLoop();
     } catch(e) {
@@ -842,7 +831,6 @@ async function loadCocoSSD(){
     }
 }
 
-/* ══ GREEN DETECT LOOP ══ */
 function startGreenDetLoop(){
     if(G.detRunning) return; G.detRunning=true;
     (async function loop(){
@@ -903,35 +891,16 @@ function drawGreenBoxes(dets, frozen){
     oc.textContent=`OBJECTS: ${dets.length}`; oc.style.display='block';
 }
 
-/* ══ GREEN SCAN ══ */
+/* GREEN SCAN */
 function toggleGreenScan(){
     if(G.scanActive){
         G.scanActive=false; G.scanDetections=[]; pushBoxesToShader([]); drawGreenBoxes([],false);
         document.getElementById('greenObjCount').style.display='none'; updateScanBtn(false);
     } else {
         G.scanActive=true; G.scanDetections=[...G.liveDetections]; G.scanTime=new Date();
-        takeGreenSnapshot(); pushBoxesToShader(G.scanDetections); drawGreenBoxes(G.scanDetections,true);
-        sweepFX(); updateScanBtn(true); openGreenTerminal(G.scanDetections, G.scanTime);
+        pushBoxesToShader(G.scanDetections); drawGreenBoxes(G.scanDetections,true);
+        sweepFX(); updateScanBtn(true);
     }
-}
-
-function takeGreenSnapshot(){
-    const snap=document.getElementById('snap-canvas');
-    snap.width=video.videoWidth||innerWidth; snap.height=video.videoHeight||innerHeight;
-    const ctx=snap.getContext('2d'); ctx.drawImage(video,0,0);
-    G.scanDetections.forEach(det=>{
-        const[bx,by,bw,bh]=det.bbox, score=Math.round(det.score*100), label=(det.class||'OBJ').toUpperCase();
-        ctx.shadowBlur=10; ctx.shadowColor='rgba(0,255,65,.8)';
-        ctx.strokeStyle='rgba(0,255,65,.9)'; ctx.lineWidth=2; ctx.strokeRect(bx,by,bw,bh);
-        const tk=Math.min(bw,bh,16); ctx.lineWidth=2.5;
-        [[bx,by,tk,0,0,tk],[bx+bw,by,-tk,0,0,tk],[bx,by+bh,tk,0,0,-tk],[bx+bw,by+bh,-tk,0,0,-tk]].forEach(([ox,oy,dx1,dy1,dx2,dy2])=>{
-            ctx.beginPath(); ctx.moveTo(ox+dx1,oy+dy1); ctx.lineTo(ox,oy); ctx.lineTo(ox+dx2,oy+dy2); ctx.stroke();
-        });
-        ctx.shadowBlur=0; const fs=11; ctx.font=`bold ${fs}px 'Share Tech Mono',monospace`;
-        const tw=ctx.measureText(`${label} ${score}%`).width+10;
-        ctx.fillStyle='rgba(0,8,0,.85)'; ctx.fillRect(bx-1,by-fs-9,tw,fs+9);
-        ctx.fillStyle='rgba(0,255,65,.95)'; ctx.fillText(`${label} ${score}%`,bx+4,by-3);
-    });
 }
 
 function sweepFX(){
@@ -949,80 +918,10 @@ function updateScanBtn(on){
     scanBtnRef.querySelector('.cl').textContent  = on?'RESET':'SCAN';
 }
 
-function openGreenTerminal(dets, ts){
-    const modal=document.getElementById('terminal-modal'); modal.classList.add('active');
-    const pad=n=>String(n).padStart(2,'0');
-    const tsStr=`${ts.getFullYear()}-${pad(ts.getMonth()+1)}-${pad(ts.getDate())} ${pad(ts.getHours())}:${pad(ts.getMinutes())}:${pad(ts.getSeconds())}`;
-    document.getElementById('term-ts').textContent=tsStr;
-    const tbody=document.getElementById('det-tbody'); tbody.innerHTML='';
-    dets.forEach((det,i)=>{
-        const[bx,by,bw,bh]=det.bbox, score=Math.round(det.score*100);
-        const tr=document.createElement('tr');
-        tr.innerHTML=`<td class="det-idx">${String(i+1).padStart(2,'0')}</td><td>${(det.class||'UNKNOWN').toUpperCase()}</td><td><span class="conf-bar" style="width:${score}px;max-width:80px"></span><span class="conf-val">${score}%</span></td><td>${Math.round(bx)},${Math.round(by)}</td><td>${Math.round(bw)}×${Math.round(bh)}</td>`;
-        tbody.appendChild(tr);
-    });
-    const classes={}; dets.forEach(d=>{const c=(d.class||'unknown').toLowerCase(); classes[c]=(classes[c]||0)+1;});
-    const classStr=Object.entries(classes).map(([k,v])=>`<b>${v}×${k.toUpperCase()}</b>`).join(' · ');
-    const avgConf=dets.length?Math.round(dets.reduce((a,d)=>a+d.score,0)/dets.length*100):0;
-    document.getElementById('term-summary').innerHTML=`SCAN TIME: <b>${tsStr}</b><br>TOTAL: <b>${dets.length}</b><br>CLASSES: ${classStr||'<b>NONE</b>'}<br>AVG CONF: <b>${avgConf}%</b>`;
-}
-
-document.getElementById('term-close').addEventListener('click',()=>{
-    document.getElementById('terminal-modal').classList.remove('active');
-    G.scanActive=false; G.scanDetections=[]; pushBoxesToShader([]); drawGreenBoxes([],false);
-    document.getElementById('greenObjCount').style.display='none'; updateScanBtn(false);
-});
-
-document.getElementById('btn-copy-txt').addEventListener('click',()=>{
-    const dets=G.scanDetections, ts=G.scanTime||new Date();
-    const lines=['myWLK v4 · SCAN REPORT',`TIME: ${ts.toISOString()}`,`OBJECTS: ${dets.length}`,'──────────────────────────────',
-        ...dets.map((d,i)=>{const[bx,by,bw,bh]=d.bbox;return`[${String(i+1).padStart(2,'0')}] ${(d.class||'?').toUpperCase().padEnd(14)} ${Math.round(d.score*100)}%  @ ${Math.round(bx)},${Math.round(by)}`;})];
-    navigator.clipboard.writeText(lines.join('\n')).then(()=>{
-        const btn=document.getElementById('btn-copy-txt'); btn.textContent='✓ COPIED';
-        setTimeout(()=>{ btn.textContent='⬡ COPY TEXT'; },2000);
-    });
-});
-
-document.getElementById('btn-export-pdf').addEventListener('click',async()=>{
-    const btn=document.getElementById('btn-export-pdf'); btn.textContent='⏳ GEN...'; btn.disabled=true;
-    try{
-        const{jsPDF}=window.jspdf, doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
-        const W=210,H=297,mg=14;
-        doc.setFillColor(0,0,0); doc.rect(0,0,W,H,'F');
-        doc.setFillColor(0,20,0); doc.rect(0,0,W,20,'F');
-        doc.setDrawColor(0,255,65); doc.setLineWidth(.3); doc.line(0,20,W,20);
-        doc.setTextColor(0,255,65); doc.setFont('courier','bold'); doc.setFontSize(14); doc.text('myWLK v4',mg,13);
-        doc.setFontSize(8); doc.setFont('courier','normal'); doc.setTextColor(0,180,46); doc.text('OBJECT ANALYSIS REPORT',mg+45,13);
-        const ts2=G.scanTime||new Date(), pad=n=>String(n).padStart(2,'0');
-        const tsStr=`${ts2.getFullYear()}-${pad(ts2.getMonth()+1)}-${pad(ts2.getDate())} ${pad(ts2.getHours())}:${pad(ts2.getMinutes())}:${pad(ts2.getSeconds())}`;
-        doc.setFontSize(7); doc.setTextColor(0,120,30); doc.text(tsStr,W-mg,13,{align:'right'});
-        const snap=document.getElementById('snap-canvas'); let imgY=24;
-        if(snap.width>0){
-            const imgData=snap.toDataURL('image/jpeg',.85), ar=snap.height/snap.width, imgW=W-mg*2, imgH=Math.min(imgW*ar,80);
-            doc.addImage(imgData,'JPEG',mg,imgY,imgW,imgH);
-            doc.setDrawColor(0,255,65); doc.setLineWidth(.3); doc.rect(mg,imgY,imgW,imgH,'S'); imgY+=imgH+4;
-        }
-        doc.setFontSize(8); doc.setTextColor(0,255,65); doc.setFont('courier','bold'); doc.text('DETECTED OBJECTS',mg,imgY+5); imgY+=10;
-        const cols=[12,42,22,30,30], headers=['#','OBJECT','CONF','POSITION','SIZE'];
-        let cx=mg; doc.setFontSize(6.5); doc.setTextColor(0,150,38); doc.setFont('courier','bold');
-        headers.forEach((h,i)=>{ doc.text(h,cx,imgY); cx+=cols[i]; }); imgY+=4;
-        doc.setDrawColor(0,60,15); doc.setLineWidth(.15); doc.line(mg,imgY,W-mg,imgY); imgY+=3;
-        doc.setFont('courier','normal'); doc.setFontSize(7);
-        G.scanDetections.forEach((det,i)=>{
-            const[bx,by,bw,bh]=det.bbox, row=[String(i+1).padStart(2,'0'),(det.class||'UNKNOWN').toUpperCase(),`${Math.round(det.score*100)}%`,`${Math.round(bx)},${Math.round(by)}`,`${Math.round(bw)}x${Math.round(bh)}`];
-            if(i%2===0){ doc.setFillColor(0,8,0); doc.rect(mg,imgY-3,W-mg*2,6,'F'); }
-            doc.setTextColor(0,200,50); cx=mg; row.forEach((v,j)=>{ doc.text(v,cx,imgY); cx+=cols[j]; }); imgY+=7;
-        });
-        doc.save(`mywlk-scan-${Date.now()}.pdf`);
-    }catch(err){ alert('PDF error: '+err.message); }
-    btn.textContent='⬡ EXPORT PDF'; btn.disabled=false;
-});
-
-/* ══ GREEN CONTROLS BUILDER ══ */
+/* GREEN CONTROLS */
 function buildGreenControls(){
     const wrap=document.getElementById('greenModeControls'); wrap.innerHTML='';
 
-    // Tint button
     const btnTint=makeCtrlBtn('🟢','TINT','g-btn',()=>{
         G.tintState=(G.tintState+1)%3; threeMat.uniforms.tint.value=G.tintState;
         const icons=['🟢','⚪','🟠'], labels=['GREEN','WHITE','AMBER'];
@@ -1031,15 +930,11 @@ function buildGreenControls(){
     });
     wrap.appendChild(btnTint);
 
-    // Scan button
     const btnScan=makeCtrlBtn('🔍','SCAN','g-btn',toggleGreenScan);
     scanBtnRef=btnScan;
     wrap.appendChild(btnScan);
 
-    // Separator
     const sep=document.createElement('div'); sep.className='ctrl-sep-el'; wrap.appendChild(sep);
-
-    // Mode switch
     wrap.appendChild(makeModeSwitch('wc'));
 }
 
@@ -1064,7 +959,7 @@ function makeModeSwitch(modeClass){
     return sw;
 }
 
-/* ══ TARGET DETECT LOOP ══ */
+/* TARGET DETECT LOOP */
 function startRedDetLoop(){
     (async function loop(){
         if(G.cocoReady && video.readyState>=2){
@@ -1074,66 +969,9 @@ function startRedDetLoop(){
     })();
 }
 
-/* ══ AUDIO VISUALIZER ══ */
-function startBioAudioViz(){
-    const canvas=document.getElementById('bioAudioViz');
-    const ctx2=canvas.getContext('2d');
-    function loop(){
-        const W=canvas.offsetWidth||160, H=canvas.offsetHeight||40;
-        if(canvas.width!==W) canvas.width=W; if(canvas.height!==H) canvas.height=H;
-        ctx2.clearRect(0,0,W,H);
-        const src=bioAnalyser||analyser, data=bioFreqData||freqData;
-        if(!src||!data){
-            ctx2.strokeStyle='rgba(57,255,20,0.15)'; ctx2.lineWidth=1;
-            ctx2.beginPath(); ctx2.moveTo(0,H/2); ctx2.lineTo(W,H/2); ctx2.stroke();
-        } else {
-            src.getByteFrequencyData(data);
-            const N=data.length, barW=W/N, gap=Math.max(barW*.12,.8);
-            for(let i=0;i<N;i++){
-                const v=data[i]/255, barH=Math.max(v*H,1.5), a=0.3+v*0.7;
-                ctx2.fillStyle=`rgba(57,255,20,${a})`; ctx2.fillRect(i*barW,H-barH,barW-gap,barH);
-                ctx2.fillStyle=`rgba(57,255,20,${a*.2})`; ctx2.fillRect(i*barW,0,barW-gap,barH*.3);
-            }
-        }
-        requestAnimationFrame(loop);
-    }
-    loop();
-}
-
-/* ══ SPEECH ══ */
-function initBioSpeech(){
-    _SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-    if(!_SR){ addLogBio('SPEECH ENGINE: NOT SUPPORTED'); return; }
-    startBioRecognition('ru-RU');
-}
-function startBioRecognition(lang){
-    if(recognition){ recognition.onend=null; recognition.onerror=null; try{recognition.abort();}catch(_){} recognition=null; }
-    recRestarting=false; recognition=new _SR();
-    recognition.continuous=true; recognition.interimResults=true; recognition.lang=lang;
-    const speechBox=document.getElementById('bioSpeechBox');
-    recognition.onresult=e=>{
-        let interim='';
-        for(let i=e.resultIndex;i<e.results.length;i++){
-            const t=e.results[i][0].transcript.trim();
-            if(e.results[i].isFinal&&t) addLogBio('SPEECH: '+t.toUpperCase());
-            else interim=t;
-        }
-        if(interim){ bioIsSpeaking=true; speechBox.textContent=interim.toUpperCase(); speechBox.classList.add('speaking'); }
-    };
-    recognition.onend=()=>{
-        bioIsSpeaking=false;
-        if(speechBox){ speechBox.classList.remove('speaking'); speechBox.textContent='IDLE'; }
-        if(!recRestarting&&bioRunning){ recRestarting=true; setTimeout(()=>{ recRestarting=false; if(bioRunning)startBioRecognition(lang); },400); }
-    };
-    recognition.onerror=e=>{ if(e.error==='not-allowed')addLogBio('MIC ACCESS DENIED'); };
-    try{ recognition.start(); addLogBio('◈ SPEECH ONLINE: '+lang.toUpperCase()); }catch(_){}
-}
-function stopBioSpeech(){
-    if(recognition){ recRestarting=true; try{recognition.abort();}catch(_){} recognition=null; }
-    bioIsSpeaking=false;
-}
-
-/* ══ MEDIAPIPE ══ */
+/* ══════════════════════════════════════
+   MEDIAPIPE
+══════════════════════════════════════ */
 async function initMediaPipe(){
     const loading=document.getElementById('bioLoading'), loadText=document.getElementById('bioLoadText');
     loading.classList.add('show');
@@ -1148,19 +986,8 @@ async function initMediaPipe(){
         mpFaceMesh.onResults(onFaceResults); await mpFaceMesh.initialize();
         mpInitialized=true; loading.classList.remove('show');
         addLogBio('◈ POSE NET ONLINE'); addLogBio('◈ FACE MESH ONLINE'); addLogBio('⬡ BIOMETRIC SCAN ACTIVE');
-        initBioMic(); startMPLoop();
+        startMPLoop();
     }catch(e){ loadText.textContent='ERROR: '+e.message; setTimeout(()=>loading.classList.remove('show'),3000); }
-}
-
-async function initBioMic(){
-    try{
-        const micStream=await navigator.mediaDevices.getUserMedia({audio:true,video:false});
-        bioAudioCtx=new(window.AudioContext||window.webkitAudioContext)();
-        bioAnalyser=bioAudioCtx.createAnalyser(); bioAnalyser.fftSize=256; bioAnalyser.smoothingTimeConstant=.75;
-        bioAudioCtx.createMediaStreamSource(micStream).connect(bioAnalyser);
-        bioFreqData=new Uint8Array(bioAnalyser.frequencyBinCount);
-        addLogBio('◈ MIC ACTIVE'); initBioSpeech();
-    }catch(e){ addLogBio('MIC: ACCESS DENIED'); }
 }
 
 function startMPLoop(){
@@ -1181,6 +1008,32 @@ function onPoseResults(results){ if(!bioRunning)return; poseResults=results; dra
 function onFaceResults(results){ if(!bioRunning)return; faceResults=results; drawBioFrame(); }
 
 /* ══ BIO DRAW ══ */
+const HEAD_LANDMARKS = new Set([0,1,2,3,4,5,6,7,8,9,10]);
+const HAND_LANDMARKS = new Set([15,16,17,18,19,20,21,22]);
+const REGION_HEAD  = [0,1,2,3,4,5,6,7,8,9,10];
+const REGION_TORSO = [11,12,23,24];
+const REGION_L_ARM = [11,13,15,17,19,21];
+const REGION_R_ARM = [12,14,16,18,20,22];
+const REGION_L_LEG = [23,25,27,29,31];
+const REGION_R_LEG = [24,26,28,30,32];
+const REGION_CONNECTIONS = {
+    head:[[0,1],[1,2],[2,3],[3,7],[0,4],[4,5],[5,6],[6,8],[9,10]],
+    torso:[[11,12],[11,23],[12,24],[23,24]],
+    lArm:[[11,13],[13,15]], rArm:[[12,14],[14,16]],
+    lLeg:[[23,25],[25,27],[27,29],[29,31]], rLeg:[[24,26],[26,28],[28,30],[30,32]],
+    lHand:[[15,17],[15,19],[15,21]], rHand:[[16,18],[16,20],[16,22]]
+};
+const FACE_OVAL=[10,338,297,332,284,251,389,356,454,323,361,288,397,365,379,378,400,377,152,148,176,149,150,136,172,58,132,93,234,127,162,21,54,103,67,109,10];
+const FACE_L_EYE=[33,7,163,144,145,153,154,155,133,173,157,158,159,160,161,246,33];
+const FACE_R_EYE=[263,249,390,373,374,380,381,382,362,398,384,385,386,387,388,466,263];
+const FACE_MOUTH_OUTER_TOP=[61,185,40,39,37,0,267,269,270,409,291];
+const FACE_MOUTH_OUTER_BOTTOM=[291,375,321,405,314,17,84,181,91,146,61];
+const FACE_MOUTH_INNER_TOP=[78,191,80,81,82,13,312,311,310,415,308];
+const FACE_MOUTH_INNER_BOTTOM=[308,324,318,402,317,14,87,178,88,95,78];
+const FACE_L_BROW=[70,63,105,66,107,55,65,52,53,46];
+const FACE_R_BROW=[300,293,334,296,336,285,295,282,283,276];
+const FACE_KEY_DOTS=[1,4,6,10,152,234,454,33,263,61,291,168,0];
+
 function getVisibleRegions(lm){
     const CONF=0.4;
     function rc(indices){ const v=indices.filter(i=>lm[i]&&(lm[i].visibility||0)>CONF); return v.length/indices.length; }
@@ -1219,7 +1072,7 @@ function drawBioFrame(){
         const ld=Math.hypot(faceLM[159].x-faceLM[145].x,faceLM[159].y-faceLM[145].y);
         const rd=Math.hypot(faceLM[386].x-faceLM[374].x,faceLM[386].y-faceLM[374].y);
         const eyesClosed=ld<.015&&rd<.015;
-        const faceColor=bioIsSpeaking?'#00ffff':(eyesClosed?'#ff3030':'#39ff14');
+        const faceColor='#39ff14';
         drawFaceTesselation(ctx,faceLM,W,H,faceColor); drawFaceOval(ctx,faceLM,W,H,faceColor);
         drawFaceEyes(ctx,faceLM,W,H,faceColor); drawFaceMouth(ctx,faceLM,W,H,faceColor);
         drawFaceIris(ctx,faceLM,W,H); drawFaceKeyDots(ctx,faceLM,W,H,faceColor);
@@ -1401,25 +1254,57 @@ function addLogBio(msg){
     if(t.childNodes.length>6)t.removeChild(t.firstChild);t.scrollTop=t.scrollHeight;
 }
 
-setInterval(()=>{
-    if(bioFaceVisible){
-        bioFrameGlitch=true;bioGlitchEnd=performance.now()+200+Math.random()*300;
-        const el=document.getElementById('bioFaceInfo');el.classList.add('glitch');
-        setTimeout(()=>{bioFrameGlitch=false;el.classList.remove('glitch');},500);
-    }
-},3000+Math.random()*4000);
+/* ══════════════════════════════════════════
+   ЭФФЕКТ ПЕРЕХОДА МЕЖДУ РЕЖИМАМИ (ENHANCED)
+══════════════════════════════════════════ */
+let noiseAnimId = null;
+function runNoiseEffect(color, duration){
+    const canvas = document.getElementById('noiseOverlay');
+    canvas.style.display = 'block';
+    canvas.width  = innerWidth;
+    canvas.height = innerHeight;
+    const ctx = canvas.getContext('2d');
+    const start = performance.now();
+    const [r,g,b] = color;
 
-/* ══ MODE SWITCH ══ */
-document.getElementById('modeToggle').onclick=()=>{
-    if(isTransitioning)return;
-    const idx=MODES.indexOf(currentMode);setMode(MODES[(idx+1)%MODES.length],true);
-};
+    function frame(now){
+        const elapsed = now - start;
+        const progress = elapsed / duration;
+        if(progress >= 1){ ctx.clearRect(0,0,canvas.width,canvas.height); canvas.style.display='none'; return; }
+        const intensity = Math.sin(progress * Math.PI); // пик в середине
+        ctx.clearRect(0,0,canvas.width,canvas.height);
+        const imgData = ctx.createImageData(canvas.width, canvas.height);
+        const d = imgData.data;
+        for(let i=0;i<d.length;i+=4){
+            if(Math.random() < intensity * 0.18){
+                const v = Math.random()*255;
+                d[i]   = r * (v/255);
+                d[i+1] = g * (v/255);
+                d[i+2] = b * (v/255);
+                d[i+3] = Math.random() * 200 * intensity;
+            }
+        }
+        ctx.putImageData(imgData,0,0);
+        noiseAnimId = requestAnimationFrame(frame);
+    }
+    if(noiseAnimId) cancelAnimationFrame(noiseAnimId);
+    noiseAnimId = requestAnimationFrame(frame);
+}
+
+function showModeBadge(mode){
+    const badge = document.getElementById('modeBadge');
+    badge.className = '';
+    badge.textContent = MODE_BADGE_TEXT[mode];
+    void badge.offsetWidth;
+    badge.className = `badge-${mode} show`;
+    setTimeout(()=>{ badge.className=''; }, 900);
+}
 
 function buildGlitchBands(toMode){
     const gb=document.getElementById('glitchBands');gb.innerHTML='';
-    for(let i=0;i<8+Math.floor(Math.random()*6);i++){
+    for(let i=0;i<10+Math.floor(Math.random()*6);i++){
         const band=document.createElement('div');band.className='gb-band';
-        band.style.cssText=`top:${Math.random()*100}%;height:${2+Math.random()*18}px;transform:translateX(${(Math.random()-.5)*60}px);`;
+        band.style.cssText=`top:${Math.random()*100}%;height:${2+Math.random()*22}px;transform:translateX(${(Math.random()-.5)*80}px);`;
         gb.appendChild(band);
     }
 }
@@ -1430,102 +1315,146 @@ function runGlitchTransition(toMode){
     document.getElementById('container').appendChild(gc);
     const gx=gc.getContext('2d');
     const colors={wc:[0,255,65],tgt:[255,32,32],bio:[57,255,20]};
-    const col=colors[toMode]||[255,255,255];let frame=0;const totalFrames=22;
+    const col=colors[toMode]||[255,255,255];let frame=0;const totalFrames=28;
     function glitchFrame(){
         gx.clearRect(0,0,gc.width,gc.height);
-        const intensity=frame<8?frame/8:(1-(frame-8)/14);
-        const slices=Math.round(3+intensity*12);
+        const progress = frame / totalFrames;
+        const intensity = progress < 0.5 ? progress*2 : (1-progress)*2;
+        const slices=Math.round(4+intensity*16);
         for(let i=0;i<slices;i++){
-            const y=Math.random()*gc.height,h=1+Math.random()*20,tx=(Math.random()-.5)*intensity*80,a=intensity*(0.2+Math.random()*.4);
+            const y=Math.random()*gc.height,h=1+Math.random()*28,tx=(Math.random()-.5)*intensity*120,a=intensity*(0.15+Math.random()*.5);
             gx.fillStyle=`rgba(${col[0]},${col[1]},${col[2]},${a})`;gx.fillRect(tx,y,gc.width,h);
+            // горизонтальные полосы смещения
+            if(Math.random()<0.3*intensity){
+                const sy=Math.random()*gc.height, sh=1+Math.random()*8;
+                gx.fillStyle=`rgba(255,255,255,${0.04*intensity})`;
+                gx.fillRect(0,sy,gc.width,sh);
+            }
         }
         frame++;if(frame<totalFrames)requestAnimationFrame(glitchFrame);else gc.remove();
     }
     glitchFrame();
 }
 
-function triggerModeTransition(toMode,cb){
-    isTransitioning=true;
-    const overlay=document.getElementById('modeTransition'),scanWipe=document.getElementById('modeScanWipe');
-    const gb=document.getElementById('glitchBands'),cls='to-'+toMode;
-    overlay.className='active '+cls;scanWipe.className='active '+cls;gb.className='active '+cls;buildGlitchBands(toMode);
+function triggerModeTransition(toMode, cb){
+    isTransitioning = true;
+    const overlay   = document.getElementById('modeTransition');
+    const scanWipe  = document.getElementById('modeScanWipe');
+    const gb        = document.getElementById('glitchBands');
+    const chromR    = document.getElementById('chromaticR');
+    const chromB    = document.getElementById('chromaticB');
+    const cls = 'to-' + toMode;
+
+    // Активируем все эффекты
+    overlay.className  = 'active ' + cls;
+    scanWipe.className = 'active ' + cls;
+    gb.className       = 'active ' + cls;
+    buildGlitchBands(toMode);
+    chromR.className   = 'active';
+    chromB.className   = 'active';
     runGlitchTransition(toMode);
-    setTimeout(()=>{overlay.className='';scanWipe.className='';gb.className='';isTransitioning=false;},700);
-    setTimeout(cb,100);
+
+    // Цифровой шум
+    const noiseColors = { wc:[0,255,65], tgt:[255,32,32], bio:[57,255,20] };
+    runNoiseEffect(noiseColors[toMode]||[255,255,255], 700);
+
+    // Ярлык режима
+    setTimeout(()=>showModeBadge(toMode), 150);
+
+    setTimeout(()=>{
+        overlay.className  = '';
+        scanWipe.className = '';
+        gb.className       = '';
+        chromR.className   = '';
+        chromB.className   = '';
+        isTransitioning    = false;
+    }, 800);
+
+    setTimeout(cb, 120);
 }
 
-function setMode(mode,animated){
-    if(animated)triggerModeTransition(mode,()=>applyMode(mode));
+function setMode(mode, animated){
+    if(animated) triggerModeTransition(mode, ()=>applyMode(mode));
     else applyMode(mode);
 }
 
 function applyMode(mode){
-    currentMode=mode;
-    const toggle=document.getElementById('modeToggle'),btnTxt=document.getElementById('modeBtnText');
+    currentMode = mode;
+    const toggle  = document.getElementById('modeToggle');
+    const btnTxt  = document.getElementById('modeBtnText');
+    const zoomCtl = document.getElementById('zoomControls');
 
-    if(mode!=='bio') stopBioSpeech();
-    bioRunning=false; stopMPLoop();
+    bioRunning = false; stopMPLoop();
 
-    // Hide all
-    document.getElementById('wcUI').style.display='none';
-    document.getElementById('tgtUI').style.display='none';
-    document.getElementById('bioUI').style.display='none';
-    threeCanvas.style.display='none';
-    detCanvas.style.display='none';
-    tgtCanvas.style.display='none';
-    bioMain.style.display='none';
-    document.getElementById('greenScanlines').style.display='none';
-    document.getElementById('scanlinesTgt').style.display='none';
-    document.getElementById('scanlinesBio').style.display='none';
-    document.getElementById('vignette').style.display='none';
-    document.getElementById('vignetteBio').style.display='none';
-    document.getElementById('greenBottomChrome').style.display='none';
-    video.className='';
+    // Скрываем всё
+    document.getElementById('wcUI').style.display  = 'none';
+    document.getElementById('tgtUI').style.display = 'none';
+    document.getElementById('bioUI').style.display = 'none';
+    threeCanvas.style.display  = 'none';
+    detCanvas.style.display    = 'none';
+    tgtCanvas.style.display    = 'none';
+    bioMain.style.display      = 'none';
+    document.getElementById('greenScanlines').style.display = 'none';
+    document.getElementById('scanlinesTgt').style.display   = 'none';
+    document.getElementById('scanlinesBio').style.display   = 'none';
+    document.getElementById('vignette').style.display       = 'none';
+    document.getElementById('vignetteBio').style.display    = 'none';
+    document.getElementById('greenBottomChrome').style.display = 'none';
+    video.className = '';
 
-    document.getElementById('dot-wc').className ='md-dot'+(mode==='wc'?' active-wc':'');
-    document.getElementById('dot-tgt').className='md-dot'+(mode==='tgt'?' active-tgt':'');
-    document.getElementById('dot-bio').className='md-dot'+(mode==='bio'?' active-bio':'');
-    btnTxt.textContent=MODE_LABELS[mode];
+    document.getElementById('dot-wc').className  = 'md-dot' + (mode==='wc' ?' active-wc' :'');
+    document.getElementById('dot-tgt').className = 'md-dot' + (mode==='tgt'?' active-tgt':'');
+    document.getElementById('dot-bio').className = 'md-dot' + (mode==='bio'?' active-bio':'');
+    btnTxt.textContent = MODE_LABELS[mode];
 
-    if(mode==='wc'){
-        document.getElementById('wcUI').style.display='block';
-        threeCanvas.style.display='block';
-        detCanvas.style.display='block';
-        document.getElementById('greenScanlines').style.display='block';
-        document.getElementById('greenBottomChrome').style.display='block';
-        toggle.className='mode-wc';
+    // Обновляем цвет кнопок зума
+    zoomCtl.className = `z-${mode}`;
+
+    if(mode === 'wc'){
+        document.getElementById('wcUI').style.display = 'block';
+        threeCanvas.style.display = 'block';
+        detCanvas.style.display   = 'block';
+        document.getElementById('greenScanlines').style.display    = 'block';
+        document.getElementById('greenBottomChrome').style.display = 'block';
+        video.classList.add('mode-wc-active');
+        toggle.className = 'mode-wc';
         buildGreenControls();
-        G.tintState=0;
-        if(threeMat) threeMat.uniforms.tint.value=0;
+        G.tintState = 0;
+        if(threeMat) threeMat.uniforms.tint.value = 0;
     }
-    else if(mode==='tgt'){
-        document.getElementById('tgtUI').style.display='block';
-        tgtCanvas.style.display='block';
-        document.getElementById('scanlinesTgt').style.display='block';
-        document.getElementById('vignette').style.display='block';
-        video.className='mode-target'; toggle.className='mode-tgt';
-        tgtCanvas.width=innerWidth*devicePixelRatio;tgtCanvas.height=innerHeight*devicePixelRatio;
-        R.running=true;R.cardVisible=false;
+    else if(mode === 'tgt'){
+        document.getElementById('tgtUI').style.display  = 'block';
+        tgtCanvas.style.display = 'block';
+        document.getElementById('scanlinesTgt').style.display = 'block';
+        document.getElementById('vignette').style.display     = 'block';
+        video.className = 'mode-target';
+        toggle.className = 'mode-tgt';
+        tgtCanvas.width  = innerWidth*devicePixelRatio;
+        tgtCanvas.height = innerHeight*devicePixelRatio;
+        R.running    = true; R.cardVisible = false;
         document.getElementById('captureCard').classList.remove('show');
         drawTGT();
         typeLogTGT('MODE: TARGET ACQUISITION','threat');
     }
-    else if(mode==='bio'){
-        document.getElementById('bioUI').style.display='block';
-        bioMain.style.display='block';
-        document.getElementById('scanlinesBio').style.display='block';
-        document.getElementById('vignetteBio').style.display='block';
-        video.className='mode-bio'; toggle.className='mode-bio';
-        bioMain.width=innerWidth*devicePixelRatio;bioMain.height=innerHeight*devicePixelRatio;
-        bioRunning=true;bioPrevTarget=false;bioAcquiredLogged=false;poseResults=null;faceResults=null;
-        addLogBio('◈ BIOMETRIC MODE ONLINE');addLogBio('⬡ LOADING NEURAL MESH...');
-        if(!mpInitialized)initMediaPipe();
-        else{ startMPLoop();addLogBio('◈ POSE + FACE MESH ACTIVE');if(!bioAudioCtx)initBioMic();else if(_SR)startBioRecognition('ru-RU'); }
+    else if(mode === 'bio'){
+        document.getElementById('bioUI').style.display  = 'block';
+        bioMain.style.display = 'block';
+        document.getElementById('scanlinesBio').style.display = 'block';
+        document.getElementById('vignetteBio').style.display  = 'block';
+        video.className = 'mode-bio';
+        toggle.className = 'mode-bio';
+        bioMain.width  = innerWidth*devicePixelRatio;
+        bioMain.height = innerHeight*devicePixelRatio;
+        bioRunning = true; bioPrevTarget = false; bioAcquiredLogged = false;
+        poseResults = null; faceResults = null;
+        addLogBio('◈ BIOMETRIC MODE ONLINE');
+        addLogBio('⬡ LOADING NEURAL MESH...');
+        if(!mpInitialized) initMediaPipe();
+        else { startMPLoop(); addLogBio('◈ POSE + FACE MESH ACTIVE'); }
     }
 }
 
 /* ══ TARGET MODE DRAW ══ */
-let tgtRunning=false;
 let cPos={x:innerWidth/2,y:innerHeight/2};
 let tgtPos={x:innerWidth/2,y:innerHeight/2,active:false};
 let isLocked=false,lockFactor=0,pulseTime=0,scanAngle=0,textTick=0;
@@ -1701,23 +1630,26 @@ function startCoordsDrift(){
 }
 
 function startBioTopClock(){
-    setInterval(()=>{const el=document.getElementById('bioTopTime');if(el)el.textContent=tsTGT();},1000);
+    setInterval(()=>{ const el=document.getElementById('bioTopTime'); if(el)el.textContent=tsTGT(); },1000);
 }
+
+/* ══ CONTROLS ══ */
+document.getElementById('modeToggle').onclick = ()=>{
+    if(isTransitioning)return;
+    const idx=MODES.indexOf(currentMode);setMode(MODES[(idx+1)%MODES.length],true);
+};
 
 window.addEventListener('resize',()=>{
     if(threeRenderer){ threeRenderer.setSize(innerWidth,innerHeight); if(threeMat)threeMat.uniforms.res.value.set(innerWidth,innerHeight); }
-    detCanvas.width=innerWidth;detCanvas.height=innerHeight;
-    tgtCanvas.width=innerWidth*devicePixelRatio;tgtCanvas.height=innerHeight*devicePixelRatio;
-    bioMain.width=innerWidth*devicePixelRatio;bioMain.height=innerHeight*devicePixelRatio;
+    detCanvas.width=innerWidth; detCanvas.height=innerHeight;
+    tgtCanvas.width=innerWidth*devicePixelRatio; tgtCanvas.height=innerHeight*devicePixelRatio;
+    bioMain.width=innerWidth*devicePixelRatio; bioMain.height=innerHeight*devicePixelRatio;
 });
 
 window.addEventListener('keydown',e=>{
     if(e.key==='m'||e.key==='M'){ const idx=MODES.indexOf(currentMode);setMode(MODES[(idx+1)%MODES.length],true); }
-});
-
-window.addEventListener('beforeunload',()=>{
-    stopBioSpeech();
-    if(bioAudioCtx) bioAudioCtx.close().catch(()=>{});
+    if(e.key==='+') applyZoom(currentZoom+ZOOM_STEP);
+    if(e.key==='-') applyZoom(currentZoom-ZOOM_STEP);
 });
 </script>
 
